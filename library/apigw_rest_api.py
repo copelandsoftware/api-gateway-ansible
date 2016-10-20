@@ -42,12 +42,19 @@ TODO: Add example return structure
 
 __version__ = '${version}'
 
-# TODO: import boto and other nonsense here
+try:
+  import boto3
+  import boto
+  from botocore.exceptions import ClientError, MissingParametersError, ParamValidationError
+  HAS_BOTO3 = True
+except ImportError:
+	HAS_BOTO3 = False
 
 class ApiGwRestApi:
   def __init__(self, module):
     self.module = module
-    # TODO: Verify boto and other libs
+    if (not HAS_BOTO3):
+      self.module.fail_json(msg="boto and boto3 are required for this module")
 
   def process_request(self):
     raise NotImplementedError

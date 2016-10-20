@@ -14,6 +14,43 @@ class TestApiGwRestApi(unittest.TestCase):
     self.module = mock.MagicMock()
     reload(apigw_rest_api)
 
+  def test_boto_module_not_found(self):
+    # Setup Mock Import Function
+    import __builtin__ as builtins
+    real_import = builtins.__import__
+
+    def mock_import(name, *args):
+      if name == 'boto': raise ImportError
+      return real_import(name, *args)
+
+    # Under Test
+    with mock.patch('__builtin__.__import__', side_effect=mock_import):
+      reload(apigw_rest_api)
+      ApiGwRestApi(self.module)
+
+    # Assert Expected Behavior
+    self.module.fail_json.assert_called_with(msg='boto and boto3 are required for this module')
+    reload(apigw_rest_api)
+
+  def test_boto3_module_not_found(self):
+    # Setup Mock Import Function
+    import __builtin__ as builtins
+    real_import = builtins.__import__
+
+    def mock_import(name, *args):
+      if name == 'boto3': raise ImportError
+      return real_import(name, *args)
+
+    # Under Test
+    with mock.patch('__builtin__.__import__', side_effect=mock_import):
+      reload(apigw_rest_api)
+      ApiGwRestApi(self.module)
+
+    # Assert Expected Behavior
+    self.module.fail_json.assert_called_with(msg='boto and boto3 are required for this module')
+    reload(apigw_rest_api)
+
+
   def test_define_argument_spec(self):
     result = ApiGwRestApi._define_module_argument_spec()
     self.assertIsInstance(result, dict)
