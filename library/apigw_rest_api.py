@@ -48,23 +48,23 @@ try:
   from botocore.exceptions import ClientError, MissingParametersError, ParamValidationError
   HAS_BOTO3 = True
 except ImportError:
-	HAS_BOTO3 = False
+  HAS_BOTO3 = False
 
 class ApiGwRestApi:
   def __init__(self, module):
     self.module = module
     if (not HAS_BOTO3):
       self.module.fail_json(msg="boto and boto3 are required for this module")
+    self.client = boto3.client('apigateway')
 
   def process_request(self):
     raise NotImplementedError
 
   @staticmethod
   def _define_module_argument_spec():
-    return dict(
-                id=dict(required=True, aliases=['name']),
-                description=dict(required=False),
-                state=dict(default='present', choices=['present', 'absent'])
+    return dict( id=dict(required=True, aliases=['name']),
+                 description=dict(required=False),
+                 state=dict(default='present', choices=['present', 'absent'])
 		)
 
 def main():

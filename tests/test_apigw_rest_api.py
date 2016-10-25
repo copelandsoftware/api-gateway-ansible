@@ -12,6 +12,10 @@ class TestApiGwRestApi(unittest.TestCase):
 
   def setUp(self):
     self.module = mock.MagicMock()
+    self.apigw  = ApiGwRestApi(self.module)
+    self.apigw.client = mock.MagicMock()
+    self.apigw.exit_json = mock.MagicMock()
+    self.apigw.fail_json = mock.MagicMock()
     reload(apigw_rest_api)
 
   def test_boto_module_not_found(self):
@@ -23,14 +27,11 @@ class TestApiGwRestApi(unittest.TestCase):
       if name == 'boto': raise ImportError
       return real_import(name, *args)
 
-    # Under Test
     with mock.patch('__builtin__.__import__', side_effect=mock_import):
       reload(apigw_rest_api)
       ApiGwRestApi(self.module)
 
-    # Assert Expected Behavior
     self.module.fail_json.assert_called_with(msg='boto and boto3 are required for this module')
-    reload(apigw_rest_api)
 
   def test_boto3_module_not_found(self):
     # Setup Mock Import Function
@@ -41,15 +42,17 @@ class TestApiGwRestApi(unittest.TestCase):
       if name == 'boto3': raise ImportError
       return real_import(name, *args)
 
-    # Under Test
     with mock.patch('__builtin__.__import__', side_effect=mock_import):
       reload(apigw_rest_api)
       ApiGwRestApi(self.module)
 
-    # Assert Expected Behavior
     self.module.fail_json.assert_called_with(msg='boto and boto3 are required for this module')
-    reload(apigw_rest_api)
 
+
+  @patch.object(apigw_rest_api, 'boto3')
+  def test_boto3_client_properly_instantiated(self, mock_boto):
+    ApiGwRestApi(self.module)
+    mock_boto.client.assert_called_once_with('apigateway')
 
   def test_define_argument_spec(self):
     result = ApiGwRestApi._define_module_argument_spec()
