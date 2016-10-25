@@ -58,7 +58,8 @@ class ApiGwRestApi:
     self.client = boto3.client('apigateway')
 
   def process_request(self):
-    raise NotImplementedError
+    params = self.module.params
+    self.client.get_api_key(apiKey=params.get('id'))
 
   @staticmethod
   def _define_module_argument_spec():

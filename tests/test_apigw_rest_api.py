@@ -48,11 +48,16 @@ class TestApiGwRestApi(unittest.TestCase):
 
     self.module.fail_json.assert_called_with(msg='boto and boto3 are required for this module')
 
-
   @patch.object(apigw_rest_api, 'boto3')
   def test_boto3_client_properly_instantiated(self, mock_boto):
     ApiGwRestApi(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
+
+  def test_process_request_calls_boto3_get_api_key(self):
+    self.apigw.module.params = { 'id': 'whatever' }
+    self.apigw.process_request()
+
+    self.apigw.client.get_api_key.assert_called_once_with(apiKey='whatever')
 
   def test_define_argument_spec(self):
     result = ApiGwRestApi._define_module_argument_spec()
