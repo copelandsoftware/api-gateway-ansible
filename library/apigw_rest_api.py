@@ -57,16 +57,28 @@ class ApiGwRestApi:
       self.module.fail_json(msg="boto and boto3 are required for this module")
     self.client = boto3.client('apigateway')
 
-  def process_request(self):
-    params = self.module.params
-    self.client.get_api_key(apiKey=params.get('id'))
-
   @staticmethod
   def _define_module_argument_spec():
     return dict( id=dict(required=True, aliases=['name']),
                  description=dict(required=False),
                  state=dict(default='present', choices=['present', 'absent'])
 		)
+
+  def _retrieve_rest_api_id(self):
+    try:
+      results = self.client.get_rest_apis()
+
+      api = filter(lambda result: result['name'] == self.module.params.get('id'), results['items'])
+
+      if len(api):
+        return api[0].get('id')
+
+      self.module.fail_json(msg='API <'+self.module.params.get('id')+'> not found')
+    except:
+      self.module.fail_json(msg='No rest apis found for this account')
+
+  def process_request(self):
+    api_id = self._retrieve_rest_api_id()
 
 def main():
     """

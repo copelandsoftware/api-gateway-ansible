@@ -12,10 +12,10 @@ class TestApiGwRestApi(unittest.TestCase):
 
   def setUp(self):
     self.module = mock.MagicMock()
-    self.apigw  = ApiGwRestApi(self.module)
-    self.apigw.client = mock.MagicMock()
-    self.apigw.exit_json = mock.MagicMock()
-    self.apigw.fail_json = mock.MagicMock()
+    self.module.exit_json = mock.MagicMock()
+    self.module.fail_json = mock.MagicMock()
+    self.restapi  = ApiGwRestApi(self.module)
+    self.restapi.client = mock.MagicMock()
     reload(apigw_rest_api)
 
   def test_boto_module_not_found(self):
@@ -53,11 +53,35 @@ class TestApiGwRestApi(unittest.TestCase):
     ApiGwRestApi(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
 
-  def test_process_request_calls_boto3_get_api_key(self):
-    self.apigw.module.params = { 'id': 'whatever' }
-    self.apigw.process_request()
+  def test_process_request_calls_boto3_get_rest_apis(self):
+    self.restapi.module.params = { 'id': 'whatever' }
+    self.restapi.process_request()
 
-    self.apigw.client.get_api_key.assert_called_once_with(apiKey='whatever')
+    self.restapi.client.get_rest_apis.assert_called_once_with()
+
+  def test_process_request_fails_when_get_rest_apis_returns_error(self):
+    self.restapi.module.params = { 'id': 'whatever' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(side_effect=Exception('kaboom'))
+    self.restapi.process_request()
+
+    self.restapi.module.fail_json.assert_called_once_with(msg='No rest apis found for this account')
+
+  def test_process_request_fails_when_requested_api_is_not_present(self):
+    get_response = {
+      'items': [{
+        'id': 12345,
+        'name': 'not here',
+      },
+      {
+        'id': 54321,
+        'name': 'also not found'
+      }]
+    }
+    self.restapi.module.params = { 'id': 'whatever' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
+    self.restapi.process_request()
+
+    self.restapi.module.fail_json.assert_called_once_with(msg='API <whatever> not found')
 
   def test_define_argument_spec(self):
     result = ApiGwRestApi._define_module_argument_spec()
