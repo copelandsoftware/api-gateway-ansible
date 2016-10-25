@@ -65,6 +65,7 @@ class ApiGwRestApi:
 		)
 
   def _retrieve_rest_api(self):
+    response = {}
     try:
       results = self.client.get_rest_apis()
       id = self.module.params.get('id')
@@ -72,20 +73,27 @@ class ApiGwRestApi:
       api = filter(lambda result: result['name'] == id, results['items'])
 
       if len(api):
-        return api[0]
-      else:
-        return {}
+        response = api[0]
     except:
-      return {}
+      self.module.fail_json(msg='Encountered fatal error calling boto3 get_rest_apis function')
+
+    return response
+
+  @staticmethod
+  def _is_changed(api, params):
+    return False
 
   def process_request(self):
     params = self.module.params
     api = self._retrieve_rest_api()
+    changed = False
 
-    if params.get('state') == 'absent' and not api:
-      self.module.exit_json(changed=False, api={})
-    else:
-      self.module.fail_json(msg='API <'+params.get('id')+'> not found')
+    if api and params.get('state') == 'absent':
+      pass
+    elif api and params.get('state') == 'present' and ApiGwRestApi._is_changed(api, params):
+      pass
+
+    return self.module.exit_json(changed=False, api=api)
 
 
 def main():

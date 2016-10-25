@@ -64,24 +64,7 @@ class TestApiGwRestApi(unittest.TestCase):
     self.restapi.client.get_rest_apis = mock.MagicMock(side_effect=Exception('kaboom'))
     self.restapi.process_request()
 
-    self.restapi.module.fail_json.assert_called_once_with(msg='API <whatever> not found')
-
-  def test_process_request_fails_when_requested_api_is_not_present(self):
-    get_response = {
-      'items': [{
-        'id': 12345,
-        'name': 'not here',
-      },
-      {
-        'id': 54321,
-        'name': 'also not found'
-      }]
-    }
-    self.restapi.module.params = { 'id': 'whatever' }
-    self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
-    self.restapi.process_request()
-
-    self.restapi.module.fail_json.assert_called_once_with(msg='API <whatever> not found')
+    self.restapi.module.fail_json.assert_called_once_with(msg='Encountered fatal error calling boto3 get_rest_apis function')
 
   def test_process_request_exits_with_no_change_when_removing_non_existent_api(self):
     self.restapi.module.params = { 'id': 'whatever', 'state': 'absent' }
@@ -89,6 +72,20 @@ class TestApiGwRestApi(unittest.TestCase):
     self.restapi.process_request()
 
     self.restapi.module.exit_json.assert_called_once_with(changed=False, api={})
+
+  def test_process_request_exits_with_no_change_when_adding_existing_and_unchanged_api(self):
+    get_response = {
+      'items': [{
+        'id': 12345,
+        'name': 'whatever',
+        'description': 'very awesome'
+      }]
+    }
+    self.restapi.module.params = { 'id': 'whatever', 'state': 'present', 'description': 'very awesome' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
+    self.restapi.process_request()
+
+    self.restapi.module.exit_json.assert_called_once_with(changed=False, api=get_response['items'][0])
 
 
   def test_define_argument_spec(self):
