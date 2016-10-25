@@ -64,21 +64,29 @@ class ApiGwRestApi:
                  state=dict(default='present', choices=['present', 'absent'])
 		)
 
-  def _retrieve_rest_api_id(self):
+  def _retrieve_rest_api(self):
     try:
       results = self.client.get_rest_apis()
+      id = self.module.params.get('id')
 
-      api = filter(lambda result: result['name'] == self.module.params.get('id'), results['items'])
+      api = filter(lambda result: result['name'] == id, results['items'])
 
       if len(api):
-        return api[0].get('id')
-
-      self.module.fail_json(msg='API <'+self.module.params.get('id')+'> not found')
+        return api[0]
+      else:
+        return {}
     except:
-      self.module.fail_json(msg='No rest apis found for this account')
+      return {}
 
   def process_request(self):
-    api_id = self._retrieve_rest_api_id()
+    params = self.module.params
+    api = self._retrieve_rest_api()
+
+    if params.get('state') == 'absent' and not api:
+      self.module.exit_json(changed=False, api={})
+    else:
+      self.module.fail_json(msg='API <'+params.get('id')+'> not found')
+
 
 def main():
     """
