@@ -70,7 +70,7 @@ class ApiGwRestApi:
     Defines the module's argument spec
     :return: Dictionary defining module arguments
     """
-    return dict( id=dict(required=True, aliases=['name']),
+    return dict( name=dict(required=True),
                  description=dict(required=False),
                  state=dict(default='present', choices=['present', 'absent'])
 		)
@@ -83,7 +83,7 @@ class ApiGwRestApi:
     response = {}
     try:
       results = self.client.get_rest_apis()
-      id = self.module.params.get('id')
+      id = self.module.params.get('name')
 
       api = filter(lambda result: result['name'] == id, results['items'])
 
@@ -102,7 +102,7 @@ class ApiGwRestApi:
     :param params: Module params
     :return: Boolean telling if result matches params
     """
-    return api.get('name') != params.get('id') or api.get('description') != params.get('description')
+    return api.get('name') != params.get('name') or api.get('description') != params.get('description')
 
   def _create_or_update_api(self, api):
     """
@@ -141,7 +141,7 @@ class ApiGwRestApi:
     api = None
     try:
       api = self.client.update_rest_api(restApiId=id, patchOperations=[
-        {'op': 'replace', 'path': '/name', 'value': self.module.params.get('id')},
+        {'op': 'replace', 'path': '/name', 'value': self.module.params.get('name')},
         {'op': 'replace', 'path': '/description', 'value': self.module.params.get('description')},
       ])
     except:
@@ -157,7 +157,7 @@ class ApiGwRestApi:
     """
     api = None
     try:
-      api = self.client.create_rest_api(name=self.module.params.get('id'), description=self.module.params.get('description'))
+      api = self.client.create_rest_api(name=self.module.params.get('name'), description=self.module.params.get('description'))
     except:
       self.module.fail_json(msg='Encountered fatal error calling boto3 create_rest_api function')
     return True, api

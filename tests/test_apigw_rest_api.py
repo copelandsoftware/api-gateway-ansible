@@ -54,20 +54,20 @@ class TestApiGwRestApi(unittest.TestCase):
     mock_boto.client.assert_called_once_with('apigateway')
 
   def test_process_request_calls_boto3_get_rest_apis(self):
-    self.restapi.module.params = { 'id': 'whatever' }
+    self.restapi.module.params = { 'name': 'whatever' }
     self.restapi.process_request()
 
     self.restapi.client.get_rest_apis.assert_called_once_with()
 
   def test_process_request_fails_when_get_rest_apis_returns_error(self):
-    self.restapi.module.params = { 'id': 'whatever' }
+    self.restapi.module.params = { 'name': 'whatever' }
     self.restapi.client.get_rest_apis = mock.MagicMock(side_effect=Exception('kaboom'))
     self.restapi.process_request()
 
     self.restapi.module.fail_json.assert_called_once_with(msg='Encountered fatal error calling boto3 get_rest_apis function')
 
   def test_process_request_exits_with_no_change_when_removing_non_existent_api(self):
-    self.restapi.module.params = { 'id': 'whatever', 'state': 'absent' }
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'absent' }
     self.restapi.client.get_rest_apis = mock.MagicMock(return_value={'items': []})
     self.restapi.process_request()
 
@@ -81,7 +81,7 @@ class TestApiGwRestApi(unittest.TestCase):
         'description': 'very awesome'
       }]
     }
-    self.restapi.module.params = { 'id': 'whatever', 'state': 'present', 'description': 'very awesome' }
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'present', 'description': 'very awesome' }
     self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
     self.restapi.process_request()
 
@@ -94,7 +94,7 @@ class TestApiGwRestApi(unittest.TestCase):
 			'description': 'a-desc',
 			'createdDate': 'some-date'
 		}
-    self.restapi.module.params = { 'id': 'whatever', 'state': 'present', 'description': 'very awesome' }
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'present', 'description': 'very awesome' }
     self.restapi.client.get_rest_apis = mock.MagicMock(return_value={'items': []})
     self.restapi.client.create_rest_api = mock.MagicMock(return_value=create_response)
     self.restapi.process_request()
@@ -103,7 +103,7 @@ class TestApiGwRestApi(unittest.TestCase):
     self.restapi.module.exit_json.assert_called_once_with(changed=True, api=create_response)
 
   def test_process_request_fails_when_create_rest_api_throws_error(self):
-    self.restapi.module.params = { 'id': 'whatever', 'state': 'present' }
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'present' }
     self.restapi.client.get_rest_apis = mock.MagicMock(return_value={'items': []})
     self.restapi.client.create_rest_api = mock.MagicMock(side_effect=Exception('no soup for you'))
     self.restapi.process_request()
@@ -119,7 +119,7 @@ class TestApiGwRestApi(unittest.TestCase):
         'description': 'very awesome'
       }]
     }
-    self.restapi.module.params = { 'id': 'whatever', 'state': 'present', 'description': 'awesomer' }
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'present', 'description': 'awesomer' }
     self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
     self.restapi.client.update_rest_api = mock.MagicMock(return_value='TotallyUpdated')
     self.restapi.process_request()
@@ -138,7 +138,7 @@ class TestApiGwRestApi(unittest.TestCase):
         'description': 'very awesome'
       }]
     }
-    self.restapi.module.params = { 'id': 'whatever', 'state': 'present', 'description': 'awesomer' }
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'present', 'description': 'awesomer' }
     self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
     self.restapi.client.update_rest_api = mock.MagicMock(side_effect=Exception('asplode'))
     self.restapi.process_request()
@@ -153,7 +153,7 @@ class TestApiGwRestApi(unittest.TestCase):
     result = ApiGwRestApi._define_module_argument_spec()
     self.assertIsInstance(result, dict)
     self.assertEqual(result, dict(
-                     id=dict(required=True, aliases=['name']),
+                     name=dict(required=True),
                      description=dict(required=False),
                      state=dict(default='present', choices=['present', 'absent'])
     ))
