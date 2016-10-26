@@ -87,6 +87,30 @@ class TestApiGwRestApi(unittest.TestCase):
 
     self.restapi.module.exit_json.assert_called_once_with(changed=False, api=get_response['items'][0])
 
+  def test_process_request_creates_api_when_missing(self):
+    create_response = {
+			'id': 'aws-whatever',
+			'name': 'a-name',
+			'description': 'a-desc',
+			'createdDate': 'some-date'
+		}
+    self.restapi.module.params = { 'id': 'whatever', 'state': 'present', 'description': 'very awesome' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(return_value={'items': []})
+    self.restapi.client.create_rest_api = mock.MagicMock(return_value=create_response)
+    self.restapi.process_request()
+
+    self.restapi.client.create_rest_api.assert_called_once_with(name='whatever', description='very awesome')
+    self.restapi.module.exit_json.assert_called_once_with(changed=True, api=create_response)
+
+  def test_process_request_fails_when_create_rest_api_throws_error(self):
+    self.restapi.module.params = { 'id': 'whatever', 'state': 'present' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(return_value={'items': []})
+    self.restapi.client.create_rest_api = mock.MagicMock(side_effect=Exception('no soup for you'))
+    self.restapi.process_request()
+
+    self.restapi.client.create_rest_api.assert_called_once_with(name='whatever', description=None)
+    self.restapi.module.fail_json.assert_called_once_with(msg='Encountered fatal error calling boto3 create_rest_api function')
+
 
   def test_define_argument_spec(self):
     result = ApiGwRestApi._define_module_argument_spec()

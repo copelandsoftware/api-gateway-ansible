@@ -83,6 +83,14 @@ class ApiGwRestApi:
   def _is_changed(api, params):
     return False
 
+  def _create_api(self):
+    api = None
+    try:
+      api = self.client.create_rest_api(name=self.module.params.get('id'), description=self.module.params.get('description'))
+    except:
+      self.module.fail_json(msg='Encountered fatal error calling boto3 create_rest_api function')
+    return True, api
+
   def process_request(self):
     params = self.module.params
     api = self._retrieve_rest_api()
@@ -92,8 +100,10 @@ class ApiGwRestApi:
       pass
     elif api and params.get('state') == 'present' and ApiGwRestApi._is_changed(api, params):
       pass
+    elif not api and params.get('state') == 'present':
+      changed, api = self._create_api()
 
-    return self.module.exit_json(changed=False, api=api)
+    return self.module.exit_json(changed=changed, api=api)
 
 
 def main():
