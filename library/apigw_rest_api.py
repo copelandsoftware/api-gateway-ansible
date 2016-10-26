@@ -163,8 +163,15 @@ class ApiGwRestApi:
               changed: Boolean showing whether a change occurred
               result: Empty hash
     """
-    if not api:
-      return False, api
+    changed = False
+    if api:
+      try:
+        api = self.client.delete_rest_api(restApiId=api.get('id'))
+        changed = True
+      except:
+        self.module.fail_json(msg='Encountered fatal error calling boto3 delete_rest_api function')
+
+    return changed, api
 
   def _update_api(self, id):
     """

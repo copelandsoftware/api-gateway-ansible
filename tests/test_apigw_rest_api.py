@@ -149,6 +149,38 @@ class TestApiGwRestApi(unittest.TestCase):
     ])
     self.restapi.module.fail_json.assert_called_once_with(msg='Encountered fatal error calling boto3 update_rest_api function')
 
+  def test_process_request_deletes_api_when_api_is_present(self):
+    get_response = {
+      'items': [{
+        'id': 12345,
+        'name': 'whatever',
+        'description': 'very awesome'
+      }]
+    }
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'absent' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
+    self.restapi.client.delete_rest_api = mock.MagicMock(return_value=None)
+    self.restapi.process_request()
+
+    self.restapi.client.delete_rest_api.assert_called_once_with(restApiId=12345)
+    self.restapi.module.exit_json.assert_called_once_with(changed=True, api=None)
+
+  def test_process_request_fails_when_delete_rest_api_throws_exception(self):
+    get_response = {
+      'items': [{
+        'id': 12345,
+        'name': 'whatever',
+        'description': 'very awesome'
+      }]
+    }
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'absent' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
+    self.restapi.client.delete_rest_api = mock.MagicMock(side_effect=Exception('not today'))
+    self.restapi.process_request()
+
+    self.restapi.client.delete_rest_api.assert_called_once_with(restApiId=12345)
+    self.restapi.module.fail_json.assert_called_once_with(msg='Encountered fatal error calling boto3 delete_rest_api function')
+
   def test_define_argument_spec(self):
     result = ApiGwRestApi._define_module_argument_spec()
     self.assertIsInstance(result, dict)
