@@ -81,18 +81,31 @@ class ApiGwRestApi:
 
   @staticmethod
   def _is_changed(api, params):
-    return False
+    return api.get('name') != params.get('id') or api.get('description') != params.get('description')
 
   def _create_or_update_api(self, api):
     changed = False
     if not api:
       changed, api = self._create_api()
+    elif ApiGwRestApi._is_changed(api, self.module.params):
+      changed, api = self._update_api(api.get('id'))
 
     return changed, api
 
   def _maybe_delete_api(self, api):
     if not api:
       return False, api
+
+  def _update_api(self, id):
+    api = None
+    try:
+      api = self.client.update_rest_api(restApiId=id, patchOperations=[
+        {'op': 'replace', 'path': '/name', 'value': self.module.params.get('id')},
+        {'op': 'replace', 'path': '/description', 'value': self.module.params.get('description')},
+      ])
+    except:
+      self.module.fail_json(msg='Encountered fatal error calling boto3 update_rest_api function')
+    return True, api
 
   def _create_api(self):
     api = None
