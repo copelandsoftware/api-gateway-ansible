@@ -83,6 +83,17 @@ class ApiGwRestApi:
   def _is_changed(api, params):
     return False
 
+  def _create_or_update_api(self, api):
+    changed = False
+    if not api:
+      changed, api = self._create_api()
+
+    return changed, api
+
+  def _maybe_delete_api(self, api):
+    if not api:
+      return False, api
+
   def _create_api(self):
     api = None
     try:
@@ -96,12 +107,10 @@ class ApiGwRestApi:
     api = self._retrieve_rest_api()
     changed = False
 
-    if api and params.get('state') == 'absent':
-      pass
-    elif api and params.get('state') == 'present' and ApiGwRestApi._is_changed(api, params):
-      pass
-    elif not api and params.get('state') == 'present':
-      changed, api = self._create_api()
+    if params.get('state') == 'absent':
+      changed, api = self._maybe_delete_api(api)
+    else:
+      changed, api = self._create_or_update_api(api)
 
     return self.module.exit_json(changed=changed, api=api)
 
