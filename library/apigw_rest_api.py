@@ -8,7 +8,7 @@
 #  - Brian Felton <bjfelton@gmail.com>
 #
 # apigw_rest_api
-#    Manage creation and removal of API Gateway REST APIs
+#    Manage creation, update, and removal of API Gateway REST APIs
 #
 
 ## TODO: Add an appropriate license statement
@@ -16,7 +16,8 @@
 DOCUMENTATION='''
 module: apigw_rest_api
 description:
-  - An Ansible module to add or remove REST API resources for AWS API Gateway
+  - An Ansible module to add, update, or remove REST API resources for
+    AWS API Gateway.
 version_added: "2.2"
 options:
   <field>:
@@ -27,9 +28,12 @@ options:
     required: <boolean>
 requirements:
     - python = 2.7
-    - <other modules>
+    - boto
+    - boto3
 notes:
-    - <probably something about boto and AWS creds>
+    - This module requires that you have boto and boto3 installed and that your
+      credentials are created or stored in a way that is compatible (see
+      U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''
@@ -52,6 +56,9 @@ except ImportError:
 
 class ApiGwRestApi:
   def __init__(self, module):
+    """
+    Constructor
+    """
     self.module = module
     if (not HAS_BOTO3):
       self.module.fail_json(msg="boto and boto3 are required for this module")
@@ -59,12 +66,20 @@ class ApiGwRestApi:
 
   @staticmethod
   def _define_module_argument_spec():
+    """
+    Defines the module's argument spec
+    :return: Dictionary defining module arguments
+    """
     return dict( id=dict(required=True, aliases=['name']),
                  description=dict(required=False),
                  state=dict(default='present', choices=['present', 'absent'])
 		)
 
   def _retrieve_rest_api(self):
+    """
+    Retrieve all rest APIs in the account and match it against the provided name
+    :return: Result matching the provided api name or an empty hash
+    """
     response = {}
     try:
       results = self.client.get_rest_apis()
@@ -81,9 +96,21 @@ class ApiGwRestApi:
 
   @staticmethod
   def _is_changed(api, params):
+    """
+    Determine if the discovered api differs from the user-provided params
+    :param api: Result from _retrieve_rest_api()
+    :param params: Module params
+    :return: Boolean telling if result matches params
+    """
     return api.get('name') != params.get('id') or api.get('description') != params.get('description')
 
   def _create_or_update_api(self, api):
+    """
+    When state is 'present', determine if api creation or update is appropriate
+    :return: (changed, result)
+              changed: Boolean showing whether a change occurred
+              result: The resulting rest api object
+    """
     changed = False
     if not api:
       changed, api = self._create_api()
@@ -93,10 +120,24 @@ class ApiGwRestApi:
     return changed, api
 
   def _maybe_delete_api(self, api):
+    """
+    Delete's the discovered api via boto3, as appropriate
+    :param api: The discovered API
+    :return: (changed, result)
+              changed: Boolean showing whether a change occurred
+              result: Empty hash
+    """
     if not api:
       return False, api
 
   def _update_api(self, id):
+    """
+    Updates the API with the provided id using boto3
+    :param id: Id of the discovered rest api
+    :return: (changed, result)
+              changed: Boolean showing whether a change occurred
+              result: The resulting rest api object after the update
+    """
     api = None
     try:
       api = self.client.update_rest_api(restApiId=id, patchOperations=[
@@ -108,6 +149,12 @@ class ApiGwRestApi:
     return True, api
 
   def _create_api(self):
+    """
+    Creates a new api based on user input
+    :return: (True, result)
+              True
+              result: The resulting rest api object after the create
+    """
     api = None
     try:
       api = self.client.create_rest_api(name=self.module.params.get('id'), description=self.module.params.get('description'))
@@ -116,6 +163,10 @@ class ApiGwRestApi:
     return True, api
 
   def process_request(self):
+    """
+    Process the user's request -- the primary code path
+    :return: Returns either fail_json or exit_json
+    """
     params = self.module.params
     api = self._retrieve_rest_api()
     changed = False
