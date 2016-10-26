@@ -20,12 +20,21 @@ description:
     AWS API Gateway.
 version_added: "2.2"
 options:
-  <field>:
+  name:
     description:
-      - <words>
-    default: <default>
-    choices: <words>
-    required: <boolean>
+      - The name of the rest api on which to operate
+    required: True
+  description:
+    description:
+      - A description for the rest api
+    default: None
+    required: False
+  state:
+    description:
+      - Determine whether to assert if api should exist or not
+    choices: ['present', 'absent']
+    default: 'present'
+    required: False
 requirements:
     - python = 2.7
     - boto
@@ -37,7 +46,34 @@ notes:
 '''
 
 EXAMPLES = '''
-TODO: Example plays go here
+- name: Add rest api to Api Gateway
+  hosts: localhost
+  gather_facts: False
+  connection: local
+  tasks:
+    - name: Create rest api
+      apigw_rest_api:
+        name: 'docs.example.io'
+        description: 'stolen straight from the docs'
+        state: present
+      register: api
+
+    - name: debug
+      debug: var=api
+
+- name: Rest api from Api Gateway
+  hosts: localhost
+  gather_facts: False
+  connection: local
+  tasks:
+    - name: Create rest api
+      apigw_rest_api:
+        name: 'docs.example.io'
+        state: absent
+      register: api
+
+    - name: debug
+      debug: var=api
 '''
 
 RETURN = '''
