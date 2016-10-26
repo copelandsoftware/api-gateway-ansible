@@ -116,7 +116,7 @@ class ApiGwRestApi:
     Retrieve all rest APIs in the account and match it against the provided name
     :return: Result matching the provided api name or an empty hash
     """
-    response = {}
+    response = None
     try:
       results = self.client.get_rest_apis()
       id = self.module.params.get('name')

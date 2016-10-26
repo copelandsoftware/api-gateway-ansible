@@ -71,7 +71,7 @@ class TestApiGwRestApi(unittest.TestCase):
     self.restapi.client.get_rest_apis = mock.MagicMock(return_value={'items': []})
     self.restapi.process_request()
 
-    self.restapi.module.exit_json.assert_called_once_with(changed=False, api={})
+    self.restapi.module.exit_json.assert_called_once_with(changed=False, api=None)
 
   def test_process_request_exits_with_no_change_when_adding_existing_and_unchanged_api(self):
     get_response = {
