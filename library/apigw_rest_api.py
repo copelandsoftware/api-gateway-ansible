@@ -27,7 +27,6 @@ options:
   description:
     description:
       - A description for the rest api
-    default: None
     required: False
   state:
     description:
@@ -77,7 +76,34 @@ EXAMPLES = '''
 '''
 
 RETURN = '''
-TODO: Add example return structure
+### Sample create response
+{
+    "api": {
+        "ResponseMetadata": {
+            "HTTPHeaders": {
+                "content-length": "79",
+                "content-type": "application/json",
+                "date": "Thu, 27 Oct 2016 11:55:05 GMT",
+                "x-amzn-requestid": "<request id here>"
+            },
+            "HTTPStatusCode": 201,
+            "RequestId": "<request id here>"
+            "RetryAttempts": 0
+        },
+        "createdDate": "2016-10-27T06:55:05-05:00",
+        "description": "example description",
+        "id": "c8888abcde",
+        "name": "example-api"
+    },
+    "changed": true,
+    "invocation": {
+        "module_args": {
+            "description": "examble description",
+            "name": "example-api",
+            "state": "present"
+        }
+    }
+}
 '''
 
 __version__ = '${version}'
