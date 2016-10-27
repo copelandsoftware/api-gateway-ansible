@@ -7,6 +7,8 @@ import mock
 from mock import patch
 from mock import create_autospec
 import unittest
+import boto
+from botocore.exceptions import BotoCoreError
 
 class TestApiGwRestApi(unittest.TestCase):
 
@@ -61,10 +63,11 @@ class TestApiGwRestApi(unittest.TestCase):
 
   def test_process_request_fails_when_get_rest_apis_returns_error(self):
     self.restapi.module.params = { 'name': 'whatever' }
-    self.restapi.client.get_rest_apis = mock.MagicMock(side_effect=Exception('kaboom'))
+    self.restapi.client.get_rest_apis = mock.MagicMock(side_effect=BotoCoreError())
     self.restapi.process_request()
 
-    self.restapi.module.fail_json.assert_called_once_with(msg='Encountered fatal error calling boto3 get_rest_apis function')
+    self.restapi.module.fail_json.assert_called_once_with(
+            msg='Encountered fatal error calling boto3 get_rest_apis function: An unspecified error occurred')
 
   def test_process_request_exits_with_no_change_when_removing_non_existent_api(self):
     self.restapi.module.params = { 'name': 'whatever', 'state': 'absent' }
@@ -105,11 +108,12 @@ class TestApiGwRestApi(unittest.TestCase):
   def test_process_request_fails_when_create_rest_api_throws_error(self):
     self.restapi.module.params = { 'name': 'whatever', 'state': 'present' }
     self.restapi.client.get_rest_apis = mock.MagicMock(return_value={'items': []})
-    self.restapi.client.create_rest_api = mock.MagicMock(side_effect=Exception('no soup for you'))
+    self.restapi.client.create_rest_api = mock.MagicMock(side_effect=BotoCoreError())
     self.restapi.process_request()
 
     self.restapi.client.create_rest_api.assert_called_once_with(name='whatever')
-    self.restapi.module.fail_json.assert_called_once_with(msg='Encountered fatal error calling boto3 create_rest_api function')
+    self.restapi.module.fail_json.assert_called_once_with(
+            msg='Encountered fatal error calling boto3 create_rest_api function: An unspecified error occurred')
 
   def test_process_request_updates_api_when_params_do_not_match(self):
     get_response = {
@@ -159,14 +163,15 @@ class TestApiGwRestApi(unittest.TestCase):
     }
     self.restapi.module.params = { 'name': 'whatever', 'state': 'present', 'description': 'awesomer' }
     self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
-    self.restapi.client.update_rest_api = mock.MagicMock(side_effect=Exception('asplode'))
+    self.restapi.client.update_rest_api = mock.MagicMock(side_effect=BotoCoreError())
     self.restapi.process_request()
 
     self.restapi.client.update_rest_api.assert_called_once_with(restApiId=12345, patchOperations=[
         {'op': 'replace', 'path': '/name', 'value': 'whatever'},
         {'op': 'replace', 'path': '/description', 'value': 'awesomer'},
     ])
-    self.restapi.module.fail_json.assert_called_once_with(msg='Encountered fatal error calling boto3 update_rest_api function')
+    self.restapi.module.fail_json.assert_called_once_with(
+            msg='Encountered fatal error calling boto3 update_rest_api function: An unspecified error occurred')
 
   def test_process_request_deletes_api_when_api_is_present(self):
     get_response = {
@@ -194,11 +199,12 @@ class TestApiGwRestApi(unittest.TestCase):
     }
     self.restapi.module.params = { 'name': 'whatever', 'state': 'absent' }
     self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
-    self.restapi.client.delete_rest_api = mock.MagicMock(side_effect=Exception('not today'))
+    self.restapi.client.delete_rest_api = mock.MagicMock(side_effect=BotoCoreError())
     self.restapi.process_request()
 
     self.restapi.client.delete_rest_api.assert_called_once_with(restApiId=12345)
-    self.restapi.module.fail_json.assert_called_once_with(msg='Encountered fatal error calling boto3 delete_rest_api function')
+    self.restapi.module.fail_json.assert_called_once_with(
+            msg='Encountered fatal error calling boto3 delete_rest_api function: An unspecified error occurred')
 
   def test_define_argument_spec(self):
     result = ApiGwRestApi._define_module_argument_spec()

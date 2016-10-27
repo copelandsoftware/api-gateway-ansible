@@ -111,7 +111,7 @@ __version__ = '${version}'
 try:
   import boto3
   import boto
-  from botocore.exceptions import ClientError, MissingParametersError, ParamValidationError
+  from botocore.exceptions import BotoCoreError
   HAS_BOTO3 = True
 except ImportError:
   HAS_BOTO3 = False
@@ -151,8 +151,8 @@ class ApiGwRestApi:
 
       if len(api):
         response = api[0]
-    except:
-      self.module.fail_json(msg='Encountered fatal error calling boto3 get_rest_apis function')
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Encountered fatal error calling boto3 get_rest_apis function: {0}".format(e))
 
     return response
 
@@ -194,8 +194,8 @@ class ApiGwRestApi:
       try:
         api = self.client.delete_rest_api(restApiId=api.get('id'))
         changed = True
-      except:
-        self.module.fail_json(msg='Encountered fatal error calling boto3 delete_rest_api function')
+      except BotoCoreError as e:
+        self.module.fail_json(msg="Encountered fatal error calling boto3 delete_rest_api function: {0}".format(e))
 
     return changed, api
 
@@ -214,8 +214,8 @@ class ApiGwRestApi:
         {'op': 'replace', 'path': '/name', 'value': self.module.params.get('name')},
         {'op': 'replace', 'path': '/description', 'value': description},
       ])
-    except:
-      self.module.fail_json(msg='Encountered fatal error calling boto3 update_rest_api function')
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Encountered fatal error calling boto3 update_rest_api function: {0}".format(e))
     return True, api
 
   def _create_api(self):
@@ -231,8 +231,8 @@ class ApiGwRestApi:
       kwargs['description'] = self.module.params.get('description')
     try:
       api = self.client.create_rest_api(**kwargs)
-    except:
-      self.module.fail_json(msg='Encountered fatal error calling boto3 create_rest_api function')
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Encountered fatal error calling boto3 create_rest_api function: {0}".format(e))
     return True, api
 
   def process_request(self):
