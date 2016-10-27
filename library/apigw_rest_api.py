@@ -109,7 +109,7 @@ class ApiGwRestApi:
     return dict( name=dict(required=True),
                  description=dict(required=False),
                  state=dict(default='present', choices=['present', 'absent'])
-		)
+    )
 
   def _retrieve_rest_api(self):
     """
@@ -182,10 +182,11 @@ class ApiGwRestApi:
               result: The resulting rest api object after the update
     """
     api = None
+    description = "" if self.module.params.get('description') is None else self.module.params.get('description')
     try:
       api = self.client.update_rest_api(restApiId=id, patchOperations=[
         {'op': 'replace', 'path': '/name', 'value': self.module.params.get('name')},
-        {'op': 'replace', 'path': '/description', 'value': self.module.params.get('description')},
+        {'op': 'replace', 'path': '/description', 'value': description},
       ])
     except:
       self.module.fail_json(msg='Encountered fatal error calling boto3 update_rest_api function')
@@ -199,8 +200,11 @@ class ApiGwRestApi:
               result: The resulting rest api object after the create
     """
     api = None
+    kwargs = dict(name=self.module.params.get('name'))
+    if self.module.params.get('description'):
+      kwargs['description'] = self.module.params.get('description')
     try:
-      api = self.client.create_rest_api(name=self.module.params.get('name'), description=self.module.params.get('description'))
+      api = self.client.create_rest_api(**kwargs)
     except:
       self.module.fail_json(msg='Encountered fatal error calling boto3 create_rest_api function')
     return True, api

@@ -108,7 +108,7 @@ class TestApiGwRestApi(unittest.TestCase):
     self.restapi.client.create_rest_api = mock.MagicMock(side_effect=Exception('no soup for you'))
     self.restapi.process_request()
 
-    self.restapi.client.create_rest_api.assert_called_once_with(name='whatever', description=None)
+    self.restapi.client.create_rest_api.assert_called_once_with(name='whatever')
     self.restapi.module.fail_json.assert_called_once_with(msg='Encountered fatal error calling boto3 create_rest_api function')
 
   def test_process_request_updates_api_when_params_do_not_match(self):
@@ -127,6 +127,25 @@ class TestApiGwRestApi(unittest.TestCase):
     self.restapi.client.update_rest_api.assert_called_once_with(restApiId=12345, patchOperations=[
         {'op': 'replace', 'path': '/name', 'value': 'whatever'},
         {'op': 'replace', 'path': '/description', 'value': 'awesomer'},
+    ])
+    self.restapi.module.exit_json.assert_called_once_with(changed=True, api='TotallyUpdated')
+
+  def test_process_request_sets_description_to_empty_string_when_missing_during_update(self):
+    get_response = {
+      'items': [{
+        'id': 12345,
+        'name': 'whatever',
+        'description': 'very awesome'
+      }]
+    }
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'present' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
+    self.restapi.client.update_rest_api = mock.MagicMock(return_value='TotallyUpdated')
+    self.restapi.process_request()
+
+    self.restapi.client.update_rest_api.assert_called_once_with(restApiId=12345, patchOperations=[
+        {'op': 'replace', 'path': '/name', 'value': 'whatever'},
+        {'op': 'replace', 'path': '/description', 'value': ''}
     ])
     self.restapi.module.exit_json.assert_called_once_with(changed=True, api='TotallyUpdated')
 
