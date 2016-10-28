@@ -6,6 +6,7 @@ from library.apigw_rest_api import ApiGwRestApi
 import mock
 from mock import patch
 from mock import create_autospec
+from mock import ANY
 import unittest
 import boto
 from botocore.exceptions import BotoCoreError
@@ -14,6 +15,7 @@ class TestApiGwRestApi(unittest.TestCase):
 
   def setUp(self):
     self.module = mock.MagicMock()
+    self.module.check_mode = False
     self.module.exit_json = mock.MagicMock()
     self.module.fail_json = mock.MagicMock()
     self.restapi  = ApiGwRestApi(self.module)
@@ -214,6 +216,49 @@ class TestApiGwRestApi(unittest.TestCase):
                      description=dict(required=False),
                      state=dict(default='present', choices=['present', 'absent'])
     ))
+
+  def test_process_requests_reports_change_and_does_not_call_create_when_check_mode(self):
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'present', 'description': 'very awesome' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(return_value={'items': []})
+    self.restapi.module.check_mode = True
+    self.restapi.process_request()
+
+    assert self.restapi.client.create_rest_api.call_count == 0
+    self.restapi.module.exit_json.assert_called_once_with(changed=True, api=ANY)
+
+  def test_process_requests_reports_change_and_does_not_call_update_when_check_mode(self):
+    get_response = {
+      'items': [{
+        'id': 12345,
+        'name': 'whatever',
+        'description': 'very awesome'
+      }]
+    }
+    self.restapi.module.check_mode = True
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'present', 'description': 'awesomer' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
+    self.restapi.process_request()
+
+    assert self.restapi.client.update_rest_api.call_count == 0
+    self.restapi.module.exit_json.assert_called_once_with(changed=True, api=ANY)
+
+
+  def test_process_requests_reports_change_and_does_not_call_delete_when_check_mode(self):
+    get_response = {
+      'items': [{
+        'id': 12345,
+        'name': 'whatever',
+        'description': 'very awesome'
+      }]
+    }
+    self.restapi.module.check_mode = True
+    self.restapi.module.params = { 'name': 'whatever', 'state': 'absent' }
+    self.restapi.client.get_rest_apis = mock.MagicMock(return_value=get_response)
+    self.restapi.process_request()
+
+    assert self.restapi.client.delete_rest_api.call_count == 0
+    self.restapi.module.exit_json.assert_called_with(changed=True, api=ANY)
+
 
   @patch.object(apigw_rest_api, 'AnsibleModule')
   @patch.object(apigw_rest_api, 'ApiGwRestApi')

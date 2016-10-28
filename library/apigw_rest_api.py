@@ -192,7 +192,8 @@ class ApiGwRestApi:
     changed = False
     if api:
       try:
-        api = self.client.delete_rest_api(restApiId=api.get('id'))
+        if not self.module.check_mode:
+          api = self.client.delete_rest_api(restApiId=api.get('id'))
         changed = True
       except BotoCoreError as e:
         self.module.fail_json(msg="Encountered fatal error calling boto3 delete_rest_api function: {0}".format(e))
@@ -210,10 +211,11 @@ class ApiGwRestApi:
     api = None
     description = "" if self.module.params.get('description') is None else self.module.params.get('description')
     try:
-      api = self.client.update_rest_api(restApiId=id, patchOperations=[
-        {'op': 'replace', 'path': '/name', 'value': self.module.params.get('name')},
-        {'op': 'replace', 'path': '/description', 'value': description},
-      ])
+      if not self.module.check_mode:
+        api = self.client.update_rest_api(restApiId=id, patchOperations=[
+          {'op': 'replace', 'path': '/name', 'value': self.module.params.get('name')},
+          {'op': 'replace', 'path': '/description', 'value': description},
+        ])
     except BotoCoreError as e:
       self.module.fail_json(msg="Encountered fatal error calling boto3 update_rest_api function: {0}".format(e))
     return True, api
@@ -230,7 +232,8 @@ class ApiGwRestApi:
     if self.module.params.get('description'):
       kwargs['description'] = self.module.params.get('description')
     try:
-      api = self.client.create_rest_api(**kwargs)
+      if not self.module.check_mode:
+        api = self.client.create_rest_api(**kwargs)
     except BotoCoreError as e:
       self.module.fail_json(msg="Encountered fatal error calling boto3 create_rest_api function: {0}".format(e))
     return True, api
