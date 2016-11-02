@@ -88,6 +88,25 @@ class ApiGwResource:
     except BotoCoreError as e:
       self.module.fail_json(msg="Error calling boto3 get_resources: {}".format(e))
 
+  @staticmethod
+  def _build_create_resources_list(path_map, resource):
+    """
+    Splits resource and builds a list of create operations
+    :param path_map: A map containing path parts
+    :param resource: The url to create
+    :return: Ordered list of resources to create
+    """
+    operations = []
+    last_part = ''
+    parts = resource.split('/')[1:]
+    for part in parts:
+      new_part = "{0}/{1}".format(last_part, part)
+      if new_part not in path_map['paths']:
+        operations.append({'part': part, 'path': new_part, 'parent': '/' if last_part == '' else last_part})
+      last_part = new_part
+
+    return operations
+
   def _create_resource(self):
     """
     Create an API Gateway Resource
@@ -99,13 +118,18 @@ class ApiGwResource:
     result = None
     if self.module.params.get('name') not in self.path_map['paths']:
       try:
+        operations = ApiGwResource._build_create_resources_list(self.path_map, self.module.params.get('name'))
         changed = True
-        part = self.module.params.get('name').split('/')[1]
-        result = self.client.create_resource(
-          restApiId=self.module.params.get('rest_api_id'),
-          parentId=self.path_map['paths']['/']['id'],
-          pathPart=part
-        )
+
+
+        for op in operations:
+          part = op['part']
+          result = self.client.create_resource(
+            restApiId=self.module.params.get('rest_api_id'),
+            parentId=self.path_map['paths'][op['parent']]['id'],
+            pathPart=part
+          )
+          self.path_map['paths'][op['path']] = {'id': result.get('id')}
       except BotoCoreError as e:
         self.module.fail_json(msg="Error calling boto3 create_resource: {}".format(e))
 

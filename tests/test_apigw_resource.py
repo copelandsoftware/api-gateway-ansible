@@ -104,14 +104,32 @@ class TestApiGwResource(unittest.TestCase):
 
   @patch.object(ApiGwResource, '_build_resource_dictionary')
   def test_process_request_creates_resource_when_resource_is_completely_new(self, mock_build_dict):
+    mock_response = {'id': 'hurray'}
     self.resource.path_map = { 'paths': {'/': {'id': 'root'}} }
-    self.resource.client.create_resource = mock.MagicMock(return_value='you did it')
+    self.resource.client.create_resource = mock.MagicMock(return_value=mock_response)
 
     self.resource.module.params = {'name': '/resource1', 'rest_api_id': 'mock'}
     self.resource.process_request()
 
     self.resource.client.create_resource.assert_called_once_with(restApiId='mock', parentId='root', pathPart='resource1')
-    self.resource.module.exit_json.assert_called_once_with(changed=True, resource='you did it')
+    self.resource.module.exit_json.assert_called_once_with(changed=True, resource=mock_response)
+
+  @patch.object(ApiGwResource, '_build_resource_dictionary')
+  def test_process_request_creates_missing_resources_when_resource_partially_exists(self, mock_build_dict):
+    self.resource.path_map = { 'paths': {'/': {'id': 'root'}, '/res1': {'id': 'abc', 'parent_id': 'root'}} }
+
+    responses = [{'id': 'param_id', 'path': '/res1/{param}'}, {'id': 'res2_id', 'path': '/res1/{param}/res2'}]
+    self.resource.client.create_resource = mock.MagicMock(side_effect=responses)
+
+    self.resource.module.params = {'name': '/res1/{param}/res2', 'rest_api_id': 'mock'}
+    self.resource.process_request()
+
+    self.assertEqual(2, self.resource.client.create_resource.call_count)
+    self.resource.client.create_resource.assert_any_call(restApiId='mock', parentId='abc', pathPart='{param}')
+    self.resource.client.create_resource.assert_called_with(restApiId='mock', parentId='param_id', pathPart='res2')
+
+    # Ensure only final resource is returned
+    self.resource.module.exit_json.assert_called_once_with(changed=True, resource=responses[1])
 
   @patch.object(ApiGwResource, '_build_resource_dictionary')
   def test_process_request_calls_fail_json_when_create_resource_fails(self, mock_build_dict):
