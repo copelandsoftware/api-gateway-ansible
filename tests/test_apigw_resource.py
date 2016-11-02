@@ -133,7 +133,7 @@ class TestApiGwResource(unittest.TestCase):
     self.resource.module.params = {'name': '/resource1', 'rest_api_id': 'mock'}
     self.resource.process_request()
 
-    assert self.resource.client.create_resource.call_count == 0
+    self.assertEqual(0, self.resource.client.create_resource.call_count)
     self.resource.module.exit_json.assert_called_once_with(changed=False, resource=None)
 
   @patch.object(ApiGwResource, '_build_resource_dictionary')
@@ -167,7 +167,7 @@ class TestApiGwResource(unittest.TestCase):
     self.resource.module.params = {'name': '/resource1', 'rest_api_id': 'mock', 'state': 'absent'}
     self.resource.process_request()
 
-    assert self.resource.client.delete_resource.call_count == 0
+    self.assertEqual(0, self.resource.client.delete_resource.call_count)
     self.resource.module.exit_json.assert_called_once_with(changed=False, resource=None)
 
   def test_define_argument_spec(self):
@@ -191,7 +191,7 @@ class TestApiGwResource(unittest.TestCase):
     apigw_resource.main()
 
     mock_ApiGwResource.assert_called_once_with(mock_AnsibleModule_instance)
-    assert mock_ApiGwResource_instance.process_request.call_count == 1
+    self.assertEqual(1, mock_ApiGwResource_instance.process_request.call_count)
 
 
 if __name__ == '__main__':
