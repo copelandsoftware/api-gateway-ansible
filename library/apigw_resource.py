@@ -14,27 +14,14 @@
 ## TODO: Add an appropriate license statement
 
 DOCUMENTATION='''
-TODO: Update this
+TODO: Complete this
 module: apigw_resource
 description:
-  - An Ansible module to add, update, or remove REST API resources for
-    AWS API Gateway.
+  - An Ansible module to add, update, or remove Resource
+    resources for AWS API Gateway.
 version_added: "2.2"
 options:
-  name:
-    description:
-      - The name of the rest api on which to operate
-    required: True
-  description:
-    description:
-      - A description for the rest api
-    required: False
-  state:
-    description:
-      - Determine whether to assert if api should exist or not
-    choices: ['present', 'absent']
-    default: 'present'
-    required: False
+
 requirements:
     - python = 2.7
     - boto
@@ -101,14 +88,63 @@ class ApiGwResource:
     except BotoCoreError as e:
       self.module.fail_json(msg="Error calling boto3 get_resources: {}".format(e))
 
+  def _create_resource(self):
+    """
+    Create an API Gateway Resource
+    :return: (changed, result)
+              changed: Boolean indicating whether or not a change occurred
+              result: Output of the create_resource call
+    """
+    changed = False
+    result = None
+    if self.module.params.get('name') not in self.path_map['paths']:
+      try:
+        changed = True
+        part = self.module.params.get('name').split('/')[1]
+        result = self.client.create_resource(
+          restApiId=self.module.params.get('rest_api_id'),
+          parentId=self.path_map['paths']['/']['id'],
+          pathPart=part
+        )
+      except BotoCoreError as e:
+        self.module.fail_json(msg="Error calling boto3 create_resource: {}".format(e))
+
+    return changed, result
+
+  def _delete_resource(self):
+    """
+    Delete an API Gateway Resource
+    :return: (changed, result)
+              changed: Boolean indicating whether or not a change occurred
+              result: Output of the delete_resource call
+    """
+    changed = False
+    if self.module.params.get('name') in self.path_map['paths']:
+      try:
+        changed = True
+        self.client.delete_resource(
+          restApiId=self.module.params.get('rest_api_id'),
+          resourceId=self.path_map['paths'][self.module.params.get('name')]['id']
+        )
+      except BotoCoreError as e:
+        self.module.fail_json(msg="Error calling boto3 delete_resource: {}".format(e))
+
+    return changed, None
 
   def process_request(self):
     """
     Process the user's request -- the primary code path
     :return: Returns either fail_json or exit_json
     """
+    changed = False
+    result = None
     self._build_resource_dictionary()
+    if self.module.params.get('state') == 'absent':
+      (changed, result) = self._delete_resource()
+    else:
+      (changed, result) = self._create_resource()
 
+    self.module.exit_json(changed=changed, resource=result)
 
 def main():
     """

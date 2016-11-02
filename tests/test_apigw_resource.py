@@ -94,12 +94,81 @@ class TestApiGwResource(unittest.TestCase):
     self.resource.client.get_resources.assert_called_once_with(restApiId='rest_id')
     self.assertEqual(self.resource.path_map, expected)
 
-  def test_process_request_calls_fail_json_when_get_resources_fails(self):
+  @patch.object(ApiGwResource, '_create_resource', return_value=(None, None))
+  def test_process_request_calls_fail_json_when_get_resources_fails(self, mock_create):
     self.resource.client.get_resources = mock.MagicMock(side_effect=BotoCoreError())
     self.resource.process_request()
 
     self.resource.module.fail_json.assert_called_once_with(
         msg="Error calling boto3 get_resources: An unspecified error occurred")
+
+  @patch.object(ApiGwResource, '_build_resource_dictionary')
+  def test_process_request_creates_resource_when_resource_is_completely_new(self, mock_build_dict):
+    self.resource.path_map = { 'paths': {'/': {'id': 'root'}} }
+    self.resource.client.create_resource = mock.MagicMock(return_value='you did it')
+
+    self.resource.module.params = {'name': '/resource1', 'rest_api_id': 'mock'}
+    self.resource.process_request()
+
+    self.resource.client.create_resource.assert_called_once_with(restApiId='mock', parentId='root', pathPart='resource1')
+    self.resource.module.exit_json.assert_called_once_with(changed=True, resource='you did it')
+
+  @patch.object(ApiGwResource, '_build_resource_dictionary')
+  def test_process_request_calls_fail_json_when_create_resource_fails(self, mock_build_dict):
+    self.resource.path_map = { 'paths': {'/': {'id': 'root'}} }
+    self.resource.client.create_resource = mock.MagicMock(side_effect=BotoCoreError())
+
+    self.resource.module.params = {'name': '/resource1', 'rest_api_id': 'mock'}
+    self.resource.process_request()
+
+    self.resource.client.create_resource.assert_called_once_with(restApiId='mock', parentId='root', pathPart='resource1')
+    self.resource.module.fail_json.assert_called_once_with(
+        msg='Error calling boto3 create_resource: An unspecified error occurred')
+
+  @patch.object(ApiGwResource, '_build_resource_dictionary')
+  def test_process_skips_create_when_resource_exists(self, mock_build_dict):
+    self.resource.path_map = { 'paths': {'/': {'id': 'root'}, '/resource1': {'id': 'abc', 'parent_id': 'root'}} }
+    self.resource.client.create_resource = mock.MagicMock()
+
+    self.resource.module.params = {'name': '/resource1', 'rest_api_id': 'mock'}
+    self.resource.process_request()
+
+    assert self.resource.client.create_resource.call_count == 0
+    self.resource.module.exit_json.assert_called_once_with(changed=False, resource=None)
+
+  @patch.object(ApiGwResource, '_build_resource_dictionary')
+  def test_process_request_deletes_resource_when_resource_is_present(self, mock_build_dict):
+    self.resource.path_map = { 'paths': {'/': {'id': 'root'}, '/resource1': {'id': 'abc', 'parent_id': 'root'}} }
+    self.resource.client.delete_resource = mock.MagicMock()
+
+    self.resource.module.params = {'name': '/resource1', 'rest_api_id': 'mock', 'state': 'absent'}
+    self.resource.process_request()
+
+    self.resource.client.delete_resource.assert_called_once_with(restApiId='mock', resourceId='abc')
+    self.resource.module.exit_json.assert_called_once_with(changed=True, resource=None)
+
+  @patch.object(ApiGwResource, '_build_resource_dictionary')
+  def test_process_request_calls_fail_json_when_delete_resource_fails(self, mock_build_dict):
+    self.resource.path_map = { 'paths': {'/': {'id': 'root'}, '/resource1': {'id': 'abc', 'parent_id': 'root'}} }
+    self.resource.client.delete_resource = mock.MagicMock(side_effect=BotoCoreError())
+
+    self.resource.module.params = {'name': '/resource1', 'rest_api_id': 'mock', 'state': 'absent'}
+    self.resource.process_request()
+
+    self.resource.client.delete_resource.assert_called_once_with(restApiId='mock', resourceId='abc')
+    self.resource.module.fail_json.assert_called_once_with(
+        msg='Error calling boto3 delete_resource: An unspecified error occurred')
+
+  @patch.object(ApiGwResource, '_build_resource_dictionary')
+  def test_process_request_skips_delete_when_resource_is_missing(self, mock_build_dict):
+    self.resource.path_map = { 'paths': {'/': {'id': 'root'}} }
+    self.resource.client.delete_resource = mock.MagicMock()
+
+    self.resource.module.params = {'name': '/resource1', 'rest_api_id': 'mock', 'state': 'absent'}
+    self.resource.process_request()
+
+    assert self.resource.client.delete_resource.call_count == 0
+    self.resource.module.exit_json.assert_called_once_with(changed=False, resource=None)
 
   def test_define_argument_spec(self):
     result = ApiGwResource._define_module_argument_spec()
