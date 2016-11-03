@@ -110,6 +110,7 @@ RETURN = '''
 
 __version__ = '${version}'
 
+import copy
 try:
   import boto3
   import boto
@@ -144,12 +145,12 @@ class ApiGwResource:
 
   def _build_resource_dictionary(self):
     try:
-      resources = self.client.get_resources(restApiId=self.module.params.get('rest_api_id'))
+      resources = self.client.get_resources(restApiId=self.module.params.get('rest_api_id'), limit=500)
 
       for res in resources.get('items'):
         self.path_map['paths'][res.get('path')] = {'id': res.get('id')}
         if 'parentId' in res:
-          self.path_map['paths'][res.get('path')]['parent_id'] = res.get('parentId')
+          self.path_map['paths'][res.get('path')]['parentId'] = res.get('parentId')
 
     except BotoCoreError as e:
       self.module.fail_json(msg="Error calling boto3 get_resources: {}".format(e))
@@ -197,6 +198,9 @@ class ApiGwResource:
           self.path_map['paths'][op['path']] = {'id': result.get('id')}
       except BotoCoreError as e:
         self.module.fail_json(msg="Error calling boto3 create_resource: {}".format(e))
+    else:
+      result = copy.deepcopy(self.path_map['paths'][self.module.params.get('name')])
+      result['path'] = self.module.params.get('name')
 
     return changed, result
 
