@@ -184,20 +184,22 @@ class ApiGwResource:
     changed = False
     result = None
     if self.module.params.get('name') not in self.path_map['paths']:
-      try:
-        operations = ApiGwResource._build_create_resources_list(self.path_map, self.module.params.get('name'))
-        changed = True
+      changed = True
 
-        for op in operations:
-          part = op['part']
-          result = self.client.create_resource(
-            restApiId=self.module.params.get('rest_api_id'),
-            parentId=self.path_map['paths'][op['parent']]['id'],
-            pathPart=part
-          )
-          self.path_map['paths'][op['path']] = {'id': result.get('id')}
-      except BotoCoreError as e:
-        self.module.fail_json(msg="Error calling boto3 create_resource: {}".format(e))
+      if not self.module.check_mode:
+        try:
+          operations = ApiGwResource._build_create_resources_list(self.path_map, self.module.params.get('name'))
+
+          for op in operations:
+            part = op['part']
+            result = self.client.create_resource(
+              restApiId=self.module.params.get('rest_api_id'),
+              parentId=self.path_map['paths'][op['parent']]['id'],
+              pathPart=part
+            )
+            self.path_map['paths'][op['path']] = {'id': result.get('id')}
+        except BotoCoreError as e:
+          self.module.fail_json(msg="Error calling boto3 create_resource: {}".format(e))
     else:
       result = copy.deepcopy(self.path_map['paths'][self.module.params.get('name')])
       result['path'] = self.module.params.get('name')
@@ -215,10 +217,11 @@ class ApiGwResource:
     if self.module.params.get('name') in self.path_map['paths']:
       try:
         changed = True
-        self.client.delete_resource(
-          restApiId=self.module.params.get('rest_api_id'),
-          resourceId=self.path_map['paths'][self.module.params.get('name')]['id']
-        )
+        if not self.module.check_mode:
+          self.client.delete_resource(
+            restApiId=self.module.params.get('rest_api_id'),
+            resourceId=self.path_map['paths'][self.module.params.get('name')]['id']
+          )
       except BotoCoreError as e:
         self.module.fail_json(msg="Error calling boto3 delete_resource: {}".format(e))
 

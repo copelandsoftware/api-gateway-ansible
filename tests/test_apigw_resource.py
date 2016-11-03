@@ -153,6 +153,19 @@ class TestApiGwResource(unittest.TestCase):
     self.resource.module.exit_json.assert_called_once_with(changed=False, resource=expected)
 
   @patch.object(ApiGwResource, '_build_resource_dictionary')
+  def test_process_skips_create_when_check_mode_enabled(self, mock_build_dict):
+    self.resource.path_map = { 'paths': {'/': {'id': 'root'}} }
+    self.resource.client.create_resource = mock.MagicMock()
+
+    self.resource.module.check_mode = True
+
+    self.resource.module.params = {'name': '/resource1', 'rest_api_id': 'mock'}
+    self.resource.process_request()
+
+    self.assertEqual(0, self.resource.client.create_resource.call_count)
+    self.resource.module.exit_json.assert_called_once_with(changed=True, resource=None)
+
+  @patch.object(ApiGwResource, '_build_resource_dictionary')
   def test_process_request_deletes_resource_when_resource_is_present(self, mock_build_dict):
     self.resource.path_map = { 'paths': {'/': {'id': 'root'}, '/resource1': {'id': 'abc', 'parentId': 'root'}} }
     self.resource.client.delete_resource = mock.MagicMock()
@@ -185,6 +198,18 @@ class TestApiGwResource(unittest.TestCase):
 
     self.assertEqual(0, self.resource.client.delete_resource.call_count)
     self.resource.module.exit_json.assert_called_once_with(changed=False, resource=None)
+
+  @patch.object(ApiGwResource, '_build_resource_dictionary')
+  def test_process_request_skips_delete_when_check_mode_enabled(self, mock_build_dict):
+    self.resource.path_map = { 'paths': {'/': {'id': 'root'}, '/del': {'id': 'abc'}} }
+    self.resource.client.delete_resource = mock.MagicMock()
+
+    self.resource.module.check_mode=True
+    self.resource.module.params = {'name': '/del', 'rest_api_id': 'mock', 'state': 'absent'}
+    self.resource.process_request()
+
+    self.assertEqual(0, self.resource.client.delete_resource.call_count)
+    self.resource.module.exit_json.assert_called_once_with(changed=True, resource=None)
 
   def test_define_argument_spec(self):
     result = ApiGwResource._define_module_argument_spec()
