@@ -81,10 +81,6 @@ class TestApiGwResource(unittest.TestCase):
         '/': {'id': 'root'},
         '/base': {'id': 'abc123', 'parent_id': 'root'},
         '/base/{param}': {'id': 'def456', 'parent_id': 'abc123'},
-      },
-      'has_children': {
-        'root': True,
-        'abc123': True
       }
     }
 
@@ -215,17 +211,3 @@ class TestApiGwResource(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
-###
-# NOTES:
-#   Step the First: Instantiate two dictionaries:
-#     - Dictionary 1 is keyed by path parts and contains all results
-#     - Dictionary 2 is keyed by resource id and contains a flag for children present (tree?)
-#   For Create:
-#     - There is no auto-vivification
-#     - The entire resource must be split by forward slash, and you must walk
-#       the map to discover the highest-level parent
-#     - Now iterate and create each level as needed
-#   For delete:
-#     - You *can* delete from the root (don't know about methods yet), but it kills everything
-#     - Discover last entry without children, then delete this resource
-#

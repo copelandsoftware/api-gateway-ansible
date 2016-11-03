@@ -14,13 +14,26 @@
 ## TODO: Add an appropriate license statement
 
 DOCUMENTATION='''
-TODO: Complete this
 module: apigw_resource
 description:
-  - An Ansible module to add, update, or remove Resource
+  - An Ansible module to add or remove Resource
     resources for AWS API Gateway.
 version_added: "2.2"
 options:
+  name:
+    description:
+      - The name of the resource on which to operate
+    required: True
+  rest_api_id:
+    description:
+      - The id of the parent rest api
+    required: True
+  state:
+    description:
+      - Determine whether to assert if resource should exist or not
+    choices: ['present', 'absent']
+    default: 'present'
+    required: False
 
 requirements:
     - python = 2.7
@@ -33,11 +46,66 @@ notes:
 '''
 
 EXAMPLES = '''
-TODO: Complete me
+- name: Add resource to Api Gateway
+  hosts: localhost
+  gather_facts: False
+  connection: local
+  tasks:
+    - name: Create resource
+      apigw_resource:
+        name: '/thing/{param}/awesomeness'
+        rest_api_id: 'abcd1234'
+        state: present
+      register: resource
+
+    - name: debug
+      debug: var=resource
+
+- name: Rest api from Api Gateway
+  hosts: localhost
+  gather_facts: False
+  connection: local
+  tasks:
+    - name: Delete resource
+      apigw_rest_api:
+        name: '/thing/not-awesome'
+        rest_api_id: 'abcd1234'
+        state: absent
+      register: resource
+
+    - name: debug
+      debug: var=resource
 '''
 
 RETURN = '''
-TODO: Add Example
+# Sample create output
+{
+    "changed": true,
+    "invocation": {
+        "module_args": {
+            "name": "/test",
+            "rest_api_id": "abc123def567",
+            "state": "present"
+        }
+    },
+    "resource": {
+        "ResponseMetadata": {
+            "HTTPHeaders": {
+                "content-length": "73",
+                "content-type": "application/json",
+                "date": "Wed, 02 Nov 2016 20:47:23 GMT",
+                "x-amzn-requestid": "an id was here"
+            },
+            "HTTPStatusCode": 201,
+            "RequestId": "an id was here",
+            "RetryAttempts": 0
+        },
+        "id": "abc55tda",
+        "parentId": "xyz123",
+        "path": "/test",
+        "pathPart": "test"
+    }
+}
 '''
 
 __version__ = '${version}'
@@ -60,8 +128,7 @@ class ApiGwResource:
       self.module.fail_json(msg="boto and boto3 are required for this module")
     self.client = boto3.client('apigateway')
     self.path_map = {
-      'paths': {},
-      'has_children': {}
+      'paths': {}
     }
 
   @staticmethod
@@ -83,7 +150,6 @@ class ApiGwResource:
         self.path_map['paths'][res.get('path')] = {'id': res.get('id')}
         if 'parentId' in res:
           self.path_map['paths'][res.get('path')]['parent_id'] = res.get('parentId')
-          self.path_map['has_children'][res.get('parentId')] = True
 
     except BotoCoreError as e:
       self.module.fail_json(msg="Error calling boto3 get_resources: {}".format(e))
@@ -120,7 +186,6 @@ class ApiGwResource:
       try:
         operations = ApiGwResource._build_create_resources_list(self.path_map, self.module.params.get('name'))
         changed = True
-
 
         for op in operations:
           part = op['part']
