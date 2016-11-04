@@ -66,7 +66,7 @@ import copy
 try:
   import boto3
   import boto
-  from botocore.exceptions import BotoCoreError
+  from botocore.exceptions import BotoCoreError, ClientError
   HAS_BOTO3 = True
 except ImportError:
   HAS_BOTO3 = False
@@ -87,10 +87,14 @@ class ApiGwMethod:
     Defines the module's argument spec
     :return: Dictionary defining module arguments
     """
-    return dict( name=dict(required=True, choices=['get', 'put', 'post', 'delete', 'patch', 'head']),
+    return dict( name=dict(
+                   required=True,
+                   choices=['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'HEAD', 'ANY', 'OPTIONS'],
+                   aliases=['method']
+                 ),
                  rest_api_id=dict(required=True),
                  resource_id=dict(required=True),
-                 authorization_type=dict(required=True),
+                 authorization_type=dict(required=False, default='NONE'),
                  authorizer_id=dict(required=False),
                  request_params=dict(
                    type='list',
@@ -103,12 +107,30 @@ class ApiGwMethod:
                  state=dict(default='present', choices=['present', 'absent'])
     )
 
+  def _find_method(self):
+    p = self.module.params
+
+    try:
+      self.method = self.client.get_method(
+          restApiId=p.get('rest_api_id'),
+          resourceId=p.get('resource_id'),
+          httpMethod=p.get('name')
+      )
+    except ClientError as e:
+      if 'NotFoundException' in e.message:
+        self.method = None
+      else:
+        self.module.fail_json(msg='Error calling boto3 get_method: {}'.format(e))
+    except BotoCoreError as e:
+      self.module.fail_json(msg='Error calling boto3 get_method: {}'.format(e))
+
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
     :return: Returns either fail_json or exit_json
     """
-    raise NotImplementedError
+    self._find_method()
 
 def main():
     """

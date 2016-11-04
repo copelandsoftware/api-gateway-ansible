@@ -9,7 +9,7 @@ from mock import create_autospec
 from mock import ANY
 import unittest
 import boto
-from botocore.exceptions import BotoCoreError
+from botocore.exceptions import BotoCoreError, ClientError
 
 class TestApiGwMethod(unittest.TestCase):
 
@@ -18,8 +18,15 @@ class TestApiGwMethod(unittest.TestCase):
     self.module.check_mode = False
     self.module.exit_json = mock.MagicMock()
     self.module.fail_json = mock.MagicMock()
-    self.resource  = ApiGwMethod(self.module)
-    self.resource.client = mock.MagicMock()
+    self.method  = ApiGwMethod(self.module)
+    self.method.client = mock.MagicMock()
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'authorization_type': 'NONE',
+      'state': 'present'
+    }
     reload(apigw_method)
 
   def test_boto_module_not_found(self):
@@ -62,10 +69,14 @@ class TestApiGwMethod(unittest.TestCase):
     result = ApiGwMethod._define_module_argument_spec()
     self.assertIsInstance(result, dict)
     self.assertEqual(result, dict(
-                     name=dict(required=True, choices=['get', 'put', 'post', 'delete', 'patch', 'head']),
+                     name=dict(
+                       required=True,
+                       choices=['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'HEAD', 'ANY', 'OPTIONS'],
+                       aliases=['method']
+                     ),
                      rest_api_id=dict(required=True),
                      resource_id=dict(required=True),
-                     authorization_type=dict(required=True),
+                     authorization_type=dict(required=False, default='NONE'),
                      authorizer_id=dict(required=False),
                      request_params=dict(
                        type='list',
@@ -76,7 +87,53 @@ class TestApiGwMethod(unittest.TestCase):
                        param_required=dict(type='bool')
                      ),
                      state=dict(default='present', choices=['present', 'absent'])
-    ))
+                     ))
+
+  def test_process_request_gets_method_on_invocation(self):
+    self.method.client.get_method=mock.MagicMock(return_value='response')
+    self.method.process_request()
+
+    self.method.client.get_method.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET'
+    )
+    self.assertEqual('response', self.method.method)
+
+  def test_process_request_sets_method_result_to_None_when_get_method_throws_not_found(self):
+    self.method.client.get_method=mock.MagicMock(
+        side_effect=ClientError({'Error': {'Code': 'x NotFoundException x'}}, 'xxx'))
+    self.method.process_request()
+
+    self.method.client.get_method.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET'
+    )
+    self.assertIsNone(self.method.method)
+
+  def test_process_request_calls_fail_json_when_ClientError_is_not_NotFoundException(self):
+    self.method.client.get_method=mock.MagicMock(
+        side_effect=ClientError({'Error': {'Code': 'boom', 'Message': 'error'}}, 'xxx'))
+    self.method.process_request()
+
+    self.method.client.get_method.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET'
+    )
+    self.method.module.fail_json.assert_called_once_with(msg='Error calling boto3 get_method: An error occurred (boom) when calling the xxx operation: error')
+
+  def test_process_request_calls_fail_json_when_get_method_throws_other_boto_core_error(self):
+    self.method.client.get_method=mock.MagicMock(side_effect=BotoCoreError())
+    self.method.process_request()
+
+    self.method.client.get_method.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET'
+    )
+    self.method.module.fail_json.assert_called_once_with(msg='Error calling boto3 get_method: An unspecified error occurred')
 
 
   @patch.object(apigw_method, 'AnsibleModule')
