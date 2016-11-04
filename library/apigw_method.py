@@ -108,29 +108,57 @@ class ApiGwMethod:
     )
 
   def _find_method(self):
+    """
+    Execute a find to determine if the method exists
+    :return: Returns result of find or exits with fail_json
+    """
     p = self.module.params
 
     try:
-      self.method = self.client.get_method(
+      response = self.client.get_method(
           restApiId=p.get('rest_api_id'),
           resourceId=p.get('resource_id'),
           httpMethod=p.get('name')
       )
+      return response
     except ClientError as e:
       if 'NotFoundException' in e.message:
-        self.method = None
+        return None
       else:
         self.module.fail_json(msg='Error calling boto3 get_method: {}'.format(e))
     except BotoCoreError as e:
       self.module.fail_json(msg='Error calling boto3 get_method: {}'.format(e))
 
+  def _delete_method(self):
+    """
+    Delete the method
+    :return: nothing
+    """
+    if not self.module.check_mode:
+      try:
+        self.client.delete_method(
+          restApiId=self.module.params.get('rest_api_id'),
+          resourceId=self.module.params.get('resource_id'),
+          httpMethod=self.module.params.get('name')
+        )
+      except BotoCoreError as e:
+        self.module.fail_json(msg="Error calling boto3 delete_method: {}".format(e))
 
   def process_request(self):
     """
     Process the user's request -- the primary code path
     :return: Returns either fail_json or exit_json
     """
-    self._find_method()
+    self.method = self._find_method()
+
+    changed = False
+    response = None
+
+    if self.method is not None and self.module.params.get('state') == 'absent':
+      self._delete_method()
+      changed = True
+
+    self.module.exit_json(changed=changed, method=response)
 
 def main():
     """

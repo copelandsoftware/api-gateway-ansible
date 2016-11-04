@@ -135,6 +135,48 @@ class TestApiGwMethod(unittest.TestCase):
     )
     self.method.module.fail_json.assert_called_once_with(msg='Error calling boto3 get_method: An unspecified error occurred')
 
+  @patch.object(ApiGwMethod, '_find_method', return_value=True)
+  def test_process_request_deletes_method_when_method_is_present(self, mock_find):
+    self.method.client.delete_method = mock.MagicMock()
+    self.method.module.params['state'] = 'absent'
+    self.method.process_request()
+    self.method.client.delete_method.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET'
+    )
+    self.method.module.exit_json.assert_called_once_with(changed=True, method=None)
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=True)
+  def test_process_skips_delete_and_returns_true_when_check_mode_enabled_and_method_exists(self, mock_find):
+    self.method.client.delete_method = mock.MagicMock()
+    self.method.module.params['state'] = 'absent'
+    self.method.module.check_mode = True
+    self.method.process_request()
+    self.assertEqual(0, self.method.client.delete_method.call_count)
+    self.method.module.exit_json.assert_called_once_with(changed=True, method=None)
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=True)
+  def test_process_request_calls_fail_json_when_delete_method_throws_error(self, mock_find):
+    self.method.client.delete_method = mock.MagicMock(side_effect=BotoCoreError())
+    self.method.module.params['state'] = 'absent'
+    self.method.process_request()
+    self.method.client.delete_method.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET'
+    )
+    self.method.module.fail_json.assert_called_once_with(
+        msg='Error calling boto3 delete_method: An unspecified error occurred')
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_skips_delete_when_method_is_absent(self, mock_find):
+    self.method.client.delete_method = mock.MagicMock()
+    self.method.module.params['state'] = 'absent'
+    self.method.process_request()
+    self.assertEqual(0, self.method.client.delete_method.call_count)
+    self.method.module.exit_json.assert_called_once_with(changed=False, method=None)
+
 
   @patch.object(apigw_method, 'AnsibleModule')
   @patch.object(apigw_method, 'ApiGwMethod')
