@@ -29,6 +29,7 @@ class TestApiGwMethod(unittest.TestCase):
     }
     reload(apigw_method)
 
+### boto3 tests
   def test_boto_module_not_found(self):
     # Setup Mock Import Function
     import __builtin__ as builtins
@@ -63,32 +64,10 @@ class TestApiGwMethod(unittest.TestCase):
   def test_boto3_client_properly_instantiated(self, mock_boto):
     ApiGwMethod(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
+### end boto3 tests
 
 
-  def test_define_argument_spec(self):
-    result = ApiGwMethod._define_module_argument_spec()
-    self.assertIsInstance(result, dict)
-    self.assertEqual(result, dict(
-                     name=dict(
-                       required=True,
-                       choices=['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'HEAD', 'ANY', 'OPTIONS'],
-                       aliases=['method']
-                     ),
-                     rest_api_id=dict(required=True),
-                     resource_id=dict(required=True),
-                     authorization_type=dict(required=False, default='NONE'),
-                     authorizer_id=dict(required=False),
-                     request_params=dict(
-                       type='list',
-                       required=False,
-                       default=[],
-                       name=dict(required=True),
-                       location=dict(required=True, choices=['querystring', 'path', 'header']),
-                       param_required=dict(type='bool')
-                     ),
-                     state=dict(default='present', choices=['present', 'absent'])
-                     ))
-
+### Find tests
   def test_process_request_gets_method_on_invocation(self):
     self.method.client.get_method=mock.MagicMock(return_value='response')
     self.method.process_request()
@@ -134,7 +113,9 @@ class TestApiGwMethod(unittest.TestCase):
         httpMethod='GET'
     )
     self.method.module.fail_json.assert_called_once_with(msg='Error calling boto3 get_method: An unspecified error occurred')
+### End find teste
 
+### Delete tests
   @patch.object(ApiGwMethod, '_find_method', return_value=True)
   def test_process_request_deletes_method_when_method_is_present(self, mock_find):
     self.method.client.delete_method = mock.MagicMock()
@@ -176,6 +157,75 @@ class TestApiGwMethod(unittest.TestCase):
     self.method.process_request()
     self.assertEqual(0, self.method.client.delete_method.call_count)
     self.method.module.exit_json.assert_called_once_with(changed=False, method=None)
+### End delete
+
+### Create tests
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_creates_method_when_method_is_absent(self, mock_find):
+    self.method.client.put_method = mock.MagicMock(return_value='create_response')
+    self.method.process_request()
+    self.method.client.put_method.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET',
+				authorizationType='NONE'
+    )
+    self.method.module.exit_json.assert_called_once_with(changed=True, method='create_response')
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_calls_fail_json_when_put_method_throws_error(self, mock_find):
+    self.method.client.put_method = mock.MagicMock(side_effect=BotoCoreError())
+    self.method.process_request()
+    self.method.client.put_method.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET',
+				authorizationType='NONE'
+    )
+    self.method.module.fail_json.assert_called_once_with(
+        msg='Error calling boto3 put_method: An unspecified error occurred')
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_skips_create_and_returns_true_when_method_is_absent(self, mock_find):
+    self.method.client.put_method = mock.MagicMock(side_effect=BotoCoreError())
+    self.method.process_request()
+    self.method.module.check_mode = True
+    self.method.client.put_method.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET',
+				authorizationType='NONE'
+    )
+    self.method.module.exit_json.assert_called_once_with(changed=True, method=None)
+
+
+### End create
+
+
+
+  def test_define_argument_spec(self):
+    result = ApiGwMethod._define_module_argument_spec()
+    self.assertIsInstance(result, dict)
+    self.assertEqual(result, dict(
+                     name=dict(
+                       required=True,
+                       choices=['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'HEAD', 'ANY', 'OPTIONS'],
+                       aliases=['method']
+                     ),
+                     rest_api_id=dict(required=True),
+                     resource_id=dict(required=True),
+                     authorization_type=dict(required=False, default='NONE'),
+                     authorizer_id=dict(required=False),
+                     request_params=dict(
+                       type='list',
+                       required=False,
+                       default=[],
+                       name=dict(required=True),
+                       location=dict(required=True, choices=['querystring', 'path', 'header']),
+                       param_required=dict(type='bool')
+                     ),
+                     state=dict(default='present', choices=['present', 'absent'])
+                     ))
 
 
   @patch.object(apigw_method, 'AnsibleModule')

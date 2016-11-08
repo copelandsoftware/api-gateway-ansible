@@ -144,6 +144,27 @@ class ApiGwMethod:
       except BotoCoreError as e:
         self.module.fail_json(msg="Error calling boto3 delete_method: {}".format(e))
 
+  def _create_method(self):
+    """
+    Create or update the method
+    :return: nothing
+    """
+    response = None
+    changed = True
+    if not self.module.check_mode:
+      try:
+        changed = True
+        response = self.client.put_method(
+          restApiId=self.module.params.get('rest_api_id'),
+          resourceId=self.module.params.get('resource_id'),
+          httpMethod=self.module.params.get('name'),
+          authorizationType=self.module.params.get('authorization_type')
+        )
+      except BotoCoreError as e:
+        self.module.fail_json(msg="Error calling boto3 put_method: {}".format(e))
+
+    return changed, response
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -157,6 +178,8 @@ class ApiGwMethod:
     if self.method is not None and self.module.params.get('state') == 'absent':
       self._delete_method()
       changed = True
+    elif self.module.params.get('state') == 'present':
+      (changed, response) = self._create_method()
 
     self.module.exit_json(changed=changed, method=response)
 
