@@ -25,6 +25,8 @@ class TestApiGwMethod(unittest.TestCase):
       'resource_id': 'rsrcid',
       'name': 'GET',
       'authorization_type': 'NONE',
+      'api_key_required': False,
+      'request_params': [],
       'state': 'present'
     }
     reload(apigw_method)
@@ -162,13 +164,36 @@ class TestApiGwMethod(unittest.TestCase):
 ### Create tests
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_creates_method_when_method_is_absent(self, mock_find):
+    self.method.module.params['api_key_required'] = True
+    self.method.module.params['request_params'] = [{
+      'name': 'qs_param',
+      'param_required': False,
+      'location': 'querystring'
+    },{
+      'name': 'path_param',
+      'param_required': True,
+      'location': 'path'
+    },{
+      'name': 'header_param',
+      'param_required': True,
+      'location': 'header'
+    }]
+    request_params = {
+      'method.request.querystring.qs_param': False,
+      'method.request.path.path_param': True,
+      'method.request.header.header_param': True
+    }
+
     self.method.client.put_method = mock.MagicMock(return_value='create_response')
     self.method.process_request()
+
     self.method.client.put_method.assert_called_once_with(
         restApiId='restid',
         resourceId='rsrcid',
         httpMethod='GET',
-				authorizationType='NONE'
+				authorizationType='NONE',
+        apiKeyRequired=True,
+        requestParameters=request_params
     )
     self.method.module.exit_json.assert_called_once_with(changed=True, method='create_response')
 
@@ -180,7 +205,9 @@ class TestApiGwMethod(unittest.TestCase):
         restApiId='restid',
         resourceId='rsrcid',
         httpMethod='GET',
-				authorizationType='NONE'
+				authorizationType='NONE',
+        apiKeyRequired=False,
+        requestParameters={}
     )
     self.method.module.fail_json.assert_called_once_with(
         msg='Error calling boto3 put_method: An unspecified error occurred')
@@ -194,7 +221,9 @@ class TestApiGwMethod(unittest.TestCase):
         restApiId='restid',
         resourceId='rsrcid',
         httpMethod='GET',
-				authorizationType='NONE'
+				authorizationType='NONE',
+        apiKeyRequired=False,
+        requestParameters={}
     )
     self.method.module.exit_json.assert_called_once_with(changed=True, method=None)
 
