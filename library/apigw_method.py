@@ -96,6 +96,7 @@ class ApiGwMethod:
                  resource_id=dict(required=True),
                  authorization_type=dict(required=False, default='NONE'),
                  authorizer_id=dict(required=False),
+                 api_key_required=dict(required=False, type='bool', default=False),
                  request_params=dict(
                    type='list',
                    required=False,
