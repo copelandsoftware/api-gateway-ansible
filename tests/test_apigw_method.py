@@ -254,6 +254,64 @@ class TestApiGwMethod(unittest.TestCase):
                        location=dict(required=True, choices=['querystring', 'path', 'header']),
                        param_required=dict(type='bool')
                      ),
+                     method_integration=dict(
+                       required=True,
+                       integration_type=dict(required=False, default='AWS', choices=['AWS', 'MOCK', 'HTTP', 'HTTP_PROXY', 'AWS_PROXY']),
+                       http_method=dict(required=False, default='POST', choices=['POST', 'GET', 'PUT']),
+                       uri=dict(required=False),
+                       passthrough_behavior=dict(required=False, default='when_no_templates', choices=['when_no_templates', 'when_no_match', 'never']),
+                       request_templates=dict(
+                         required=False,
+                         type='list',
+                         default=[],
+                         content_type=dict(required=True),
+                         template=dict(required=True)
+                       ),
+                       cache_namespace=dict(required=False, default=''),
+                       cache_key_parameters=dict(required=False, type='list', default=[]),
+                       integration_params=dict(
+                         type='list',
+                         required=False,
+                         default=[],
+                         name=dict(required=True),
+                         location=dict(required=True, choices=['querystring', 'path', 'header']),
+                         value=dict(required=True)
+                       )
+                     ),
+                     method_responses=dict(
+                       type='list',
+                       required=True,
+                       status_code=dict(required=True),
+                       response_models=dict(
+                         type='list',
+                         required=False,
+                         default=[],
+                         content_type=dict(required=True),
+                         model=dict(required=False, default='Empty', choices=['Empty', 'Error'])
+                       )
+                     ),
+                     integration_responses=dict(
+                       type='list',
+                       required=True,
+                       status_code=dict(required=True),
+                       is_default=dict(required=False, default=False, type='bool'),
+                       pattern=dict(required=False),
+                       response_params=dict(
+                         type='list',
+                         required=False,
+                         default=[],
+                         name=dict(required=True),
+                         location=dict(required=True, choices=['querystring', 'path', 'header']),
+                         value=dict(required=True)
+                       ),
+                       response_templates=dict(
+                         required=False,
+                         type='list',
+                         default=[],
+                         content_type=dict(required=True),
+                         template=dict(required=True)
+                       ),
+                     ),
                      state=dict(default='present', choices=['present', 'absent'])
                      ))
 
