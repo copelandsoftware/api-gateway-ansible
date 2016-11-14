@@ -277,7 +277,8 @@ class ApiGwMethod:
     p = self
     if not self.module.check_mode:
       try:
-        response = self.client.put_method(**ArgBuilder.put_method(self.module.params))
+        self.client.put_method(**ArgBuilder.put_method(self.module.params))
+        response = self._find_method()
       except BotoCoreError as e:
         self.module.fail_json(msg="Error calling boto3 put_method: {}".format(e))
 

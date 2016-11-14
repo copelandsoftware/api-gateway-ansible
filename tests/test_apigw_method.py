@@ -95,7 +95,8 @@ class TestApiGwMethod(unittest.TestCase):
 
 
 ### Find tests
-  def test_process_request_gets_method_on_invocation(self):
+  @patch.object(ApiGwMethod, '_create_method', return_value=[None, None])
+  def test_process_request_gets_method_on_invocation(self, mock_create):
     self.method.client.get_method=mock.MagicMock(return_value='response')
     self.method.process_request()
 
@@ -106,7 +107,8 @@ class TestApiGwMethod(unittest.TestCase):
     )
     self.assertEqual('response', self.method.method)
 
-  def test_process_request_sets_method_result_to_None_when_get_method_throws_not_found(self):
+  @patch.object(ApiGwMethod, '_create_method', return_value=[None, None])
+  def test_process_request_sets_method_result_to_None_when_get_method_throws_not_found(self, mock_create):
     self.method.client.get_method=mock.MagicMock(
         side_effect=ClientError({'Error': {'Code': 'x NotFoundException x'}}, 'xxx'))
     self.method.process_request()
@@ -118,7 +120,8 @@ class TestApiGwMethod(unittest.TestCase):
     )
     self.assertIsNone(self.method.method)
 
-  def test_process_request_calls_fail_json_when_ClientError_is_not_NotFoundException(self):
+  @patch.object(ApiGwMethod, '_create_method', return_value=[None, None])
+  def test_process_request_calls_fail_json_when_ClientError_is_not_NotFoundException(self, mock_create):
     self.method.client.get_method=mock.MagicMock(
         side_effect=ClientError({'Error': {'Code': 'boom', 'Message': 'error'}}, 'xxx'))
     self.method.process_request()
@@ -130,7 +133,8 @@ class TestApiGwMethod(unittest.TestCase):
     )
     self.method.module.fail_json.assert_called_once_with(msg='Error calling boto3 get_method: An error occurred (boom) when calling the xxx operation: error')
 
-  def test_process_request_calls_fail_json_when_get_method_throws_other_boto_core_error(self):
+  @patch.object(ApiGwMethod, '_create_method', return_value=[None, None])
+  def test_process_request_calls_fail_json_when_get_method_throws_other_boto_core_error(self, mock_create):
     self.method.client.get_method=mock.MagicMock(side_effect=BotoCoreError())
     self.method.process_request()
 
@@ -187,8 +191,16 @@ class TestApiGwMethod(unittest.TestCase):
 ### End delete
 
 ### Create tests
+  @patch.object(ApiGwMethod, '_find_method', side_effect=[None, 'Called post-create'])
+  def test_process_request_calls_get_method_and_returns_result_after_create_when_method_is_absent(self, mock_find):
+
+    self.method.client.put_method = mock.MagicMock()
+    self.method.process_request()
+
+    self.method.module.exit_json.assert_called_once_with(changed=True, method='Called post-create')
+
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
-  def test_process_request_creates_method_when_method_is_absent(self, mock_find):
+  def test_process_request_calls_put_method_when_method_is_absent(self, mock_find):
     self.method.module.params['api_key_required'] = True
     self.method.module.params['request_params'] = [{
       'name': 'qs_param',
@@ -220,7 +232,6 @@ class TestApiGwMethod(unittest.TestCase):
         apiKeyRequired=True,
         requestParameters=request_params
     )
-    self.method.module.exit_json.assert_called_once_with(changed=True, method='create_response')
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_calls_fail_json_when_put_method_throws_error(self, mock_find):
