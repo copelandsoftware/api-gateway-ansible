@@ -71,6 +71,15 @@ try:
 except ImportError:
   HAS_BOTO3 = False
 
+class InvalidInputError(Exception):
+  def __init__(self, param, fail_message):
+    """
+    Exceptions raised for parameter validation errors
+    :param param: The parameter with an illegal value
+    :param fail_message: Message specifying why exception is being raised
+    """
+    Exception.__init__(self, "Error validating {0}: {1}".format(param, fail_message))
+
 class ApiGwMethod:
   def __init__(self, module):
     """
@@ -174,6 +183,29 @@ class ApiGwMethod:
         ),
         state=dict(default='present', choices=['present', 'absent'])
     )
+
+  def validate_params(self):
+    """
+    Validate the module's argument spec for illegal combinations of arguments
+    Throws InvalidInputError for any issues
+    :return: Returns nothing
+    """
+    p = self.module.params
+    if p['authorization_type'] == 'CUSTOM' and 'authorizer_id' not in p:
+      raise InvalidInputError('authorizer_id', "authorizer_id must be provided when authorization_type is 'CUSTOM'")
+
+    if p['method_integration']['integration_type'] in ['AWS', 'HTTP']:
+      if 'http_method' not in p['method_integration']:
+        raise InvalidInputError('method_integration', "http_method must be provided when integration_type is 'AWS' or 'HTTP'")
+      elif 'uri' not in p['method_integration']:
+        raise InvalidInputError('method_integration', "uri must be provided when integration_type is 'AWS' or 'HTTP'")
+
+    for ir in p['integration_responses']:
+      if 'is_default' in ir and ir['is_default'] and 'pattern' in ir:
+        raise InvalidInputError('integration_responses', "'pattern' must not be provided when 'is_default' is True")
+      elif 'pattern' not in ir and ('is_default' not in ir or not ir['is_default']):
+        raise InvalidInputError('integration_responses', "'pattern' must be provided when 'is_default' is False")
+
 
   def _find_method(self):
     """

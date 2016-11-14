@@ -2,7 +2,7 @@
 # TODO: License goes here
 
 import library.apigw_method as apigw_method
-from library.apigw_method import ApiGwMethod
+from library.apigw_method import ApiGwMethod, InvalidInputError
 import mock
 from mock import patch
 from mock import create_autospec
@@ -10,6 +10,31 @@ from mock import ANY
 import unittest
 import boto
 from botocore.exceptions import BotoCoreError, ClientError
+import copy
+
+def merge(a, b):
+  for key in b:
+    if key in a:
+      if isinstance(a[key], dict) and isinstance(b[key], dict):
+        merge(a[key], b[key])
+      else:
+        a[key] = b[key]
+    else:
+      a[key] = b[key]
+
+  return a
+
+def purge(a, keys):
+  for key in keys:
+    parts = key.split('.')
+    k = parts[0]
+    newkey = ".".join(parts[1:])
+    if newkey:
+      purge(a[k], [newkey])
+    else:
+      a.pop(key, None)
+
+  return a
 
 class TestApiGwMethod(unittest.TestCase):
 
@@ -230,6 +255,122 @@ class TestApiGwMethod(unittest.TestCase):
 
 ### End create
 
+
+### Gauntlet of validation
+  # This 'test' is a facility to allow testing of all validation scenarios.  This
+  # probably isn't the best of practices, but it gives us a one-stop shop for capturing
+  # tests of all of the conditional requirements of the various boto method invocations.
+  #
+  # This is not meant to test that ansible enforces the various conditions in the
+  # argument spec and instead tests errors arising from illegal combinations of
+  # parameters (as per the boto3 apigateway docs)
+  def test_validation_of_arguments(self):
+    # A complete and valid param list
+    params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'authorization_type': 'NONE',
+      'api_key_required': False,
+      'request_params': [{'name': 'reqparm', 'location': 'header', 'param_required': True}],
+      'method_integration': {
+        'integration_type': 'AWS',
+        'http_method': 'POST',
+        'uri': 'this.is.a.uri',
+        'passthrough_behavior': 'when_no_templates',
+        'request_templates': [{
+          'content_type': 'application/json',
+          'template': '{"key": "value"}'
+        }],
+        'integration_params': [{'name': 'intparam', 'location': 'querystring', 'value': 'yes'}]
+      },
+      'method_responses': [{
+        'status_code': '200',
+        'response_models': [{'content_type': 'application/json', 'model': 'Empty'}],
+      }],
+      'integration_responses': [{
+        'status_code': '200',
+        'is_default': False,
+        'pattern': '.*whatever.*',
+        'response_params': [{'name': 'irparam', 'location': 'path', 'value': 'sure'}],
+        'response_templates': [{'content_type': 'application/xml', 'template': 'xml stuff'}]
+      }],
+      'state': 'present',
+    }
+
+    # Changes needed to invoke an exception
+    tests = [
+        {
+          'changes': {'authorization_type': 'CUSTOM'},
+          'delete_keys': [],
+          'error': {
+            'param': 'authorizer_id',
+            'msg': "authorizer_id must be provided when authorization_type is 'CUSTOM'"
+          }
+        },
+        {
+          'changes': {},
+          'delete_keys': ['method_integration.http_method'],
+          'error': {
+            'param': 'method_integration',
+            'msg': "http_method must be provided when integration_type is 'AWS' or 'HTTP'"
+          }
+        },
+        {
+          'changes': {'method_integration': {'integration_type': 'HTTP'}},
+          'delete_keys': ['method_integration.http_method'],
+          'error': {
+            'param': 'method_integration',
+            'msg': "http_method must be provided when integration_type is 'AWS' or 'HTTP'"
+          }
+        },
+        {
+          'changes': {},
+          'delete_keys': ['method_integration.uri'],
+          'error': {
+            'param': 'method_integration',
+            'msg': "uri must be provided when integration_type is 'AWS' or 'HTTP'"
+          }
+        },
+        {
+          'changes': {'method_integration': {'integration_type': 'HTTP'}},
+          'delete_keys': ['method_integration.uri'],
+          'error': {
+            'param': 'method_integration',
+            'msg': "uri must be provided when integration_type is 'AWS' or 'HTTP'"
+          }
+        },
+        {
+          'changes': {'integration_responses': [{'status_code': 'x', 'is_default': True, 'pattern': 'xxx'}]},
+          'delete_keys': [],
+          'error': {
+            'param': 'integration_responses',
+            'msg': "'pattern' must not be provided when 'is_default' is True"
+          }
+        },
+        {
+          'changes': {'integration_responses': [{'status_code': 'x', 'is_default': False}]},
+          'delete_keys': [],
+          'error': {
+            'param': 'integration_responses',
+            'msg': "'pattern' must be provided when 'is_default' is False"
+          }
+        },
+    ]
+
+    for test in tests:
+      p = copy.deepcopy(params)
+      p = merge(p, test['changes'])
+      p = purge(p, test['delete_keys'])
+      self.method.module.params = p
+      try:
+        self.method.validate_params()
+        self.assertEqual("", test['error']['msg'])
+      except apigw_method.InvalidInputError as e:
+        self.assertEqual("Error validating {0}: {1}".format(test['error']['param'], test['error']['msg']), str(e))
+
+
+### End validation
 
 
   def test_define_argument_spec(self):
