@@ -80,6 +80,29 @@ class InvalidInputError(Exception):
     """
     Exception.__init__(self, "Error validating {0}: {1}".format(param, fail_message))
 
+class ArgBuilder:
+  @staticmethod
+  def put_method(params):
+    return dict(
+      restApiId=params.get('rest_api_id'),
+      resourceId=params.get('resource_id'),
+      httpMethod=params.get('name'),
+      authorizationType=params.get('authorization_type'),
+      apiKeyRequired=params.get('api_key_required', False),
+      requestParameters=ArgBuilder.request_params(params.get('request_params'))
+    )
+
+  @staticmethod
+  def request_params(params_list):
+    params = {}
+
+    for param in params_list:
+      key = "method.request.{0}.{1}".format(param['location'], param['name'])
+      params[key] = param['param_required']
+
+    return params
+
+
 class ApiGwMethod:
   def __init__(self, module):
     """
@@ -244,16 +267,6 @@ class ApiGwMethod:
       except BotoCoreError as e:
         self.module.fail_json(msg="Error calling boto3 delete_method: {}".format(e))
 
-  @staticmethod
-  def _build_request_params(params_list):
-    params = {}
-
-    for param in params_list:
-      key = "method.request.{0}.{1}".format(param['location'], param['name'])
-      params[key] = param['param_required']
-
-    return params
-
   def _create_method(self):
     """
     Create or update the method
@@ -261,17 +274,10 @@ class ApiGwMethod:
     """
     response = None
     changed = True
+    p = self
     if not self.module.check_mode:
       try:
-        changed = True
-        response = self.client.put_method(
-          restApiId=self.module.params.get('rest_api_id'),
-          resourceId=self.module.params.get('resource_id'),
-          httpMethod=self.module.params.get('name'),
-          authorizationType=self.module.params.get('authorization_type'),
-          apiKeyRequired=self.module.params.get('api_key_required', False),
-          requestParameters=ApiGwMethod._build_request_params(self.module.params.get('request_params'))
-        )
+        response = self.client.put_method(**ArgBuilder.put_method(self.module.params))
       except BotoCoreError as e:
         self.module.fail_json(msg="Error calling boto3 put_method: {}".format(e))
 
