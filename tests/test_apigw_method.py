@@ -261,6 +261,12 @@ class TestApiGwMethod(unittest.TestCase):
         apiKeyRequired=False,
         requestParameters={}
     )
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_skips_create_and_returns_true_when_method_is_absent_and_check_mode_set(self, mock_find):
+    self.method.client.put_method = mock.MagicMock()
+    self.method.module.check_mode = True
+    self.method.process_request()
+    self.assertEqual(0, self.method.client.put_method.call_count)
     self.method.module.exit_json.assert_called_once_with(changed=True, method=None)
 
 
