@@ -53,6 +53,7 @@ class TestApiGwMethod(unittest.TestCase):
       'api_key_required': False,
       'request_params': [],
       'method_integration': {'integration_type': 'value'},
+      'method_responses': [],
       'state': 'present'
     }
     reload(apigw_method)
@@ -276,6 +277,32 @@ class TestApiGwMethod(unittest.TestCase):
     self.method.client.put_integration.assert_called_once_with(**expected)
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_calls_put_method_response_when_method_is_absent(self, mock_find):
+    p = [
+        {'status_code': 200, 'response_models': [{'content_type': 'ct1', 'model': 'model'},{'content_type': 'ct2'}]},
+        {'status_code': 400},
+        {'status_code': 500}
+    ]
+    self.method.module.params['method_responses'] = p;
+    expected = [
+      dict(
+        restApiId='restid', resourceId='rsrcid', httpMethod='GET',
+        statusCode='200', responseModels={'ct1': 'model', 'ct2': 'Empty'}
+      ),
+      dict(restApiId='restid', resourceId='rsrcid', httpMethod='GET', statusCode='400', responseModels={}),
+      dict(restApiId='restid', resourceId='rsrcid', httpMethod='GET', statusCode='500', responseModels={})
+    ]
+
+    self.method.client.put_method = mock.MagicMock()
+    self.method.client.put_integration = mock.MagicMock()
+    self.method.client.put_method_response = mock.MagicMock()
+    self.method.process_request()
+
+    self.assertEqual(3, self.method.client.put_method_response.call_count)
+    for kwargs in expected:
+      self.method.client.put_method_response.assert_any_call(**kwargs)
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_calls_fail_json_when_put_method_throws_error(self, mock_find):
     self.method.client.put_method = mock.MagicMock(side_effect=BotoCoreError())
     self.method.process_request()
@@ -307,9 +334,24 @@ class TestApiGwMethod(unittest.TestCase):
         msg='Error while creating method via boto3: An unspecified error occurred')
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
-  def test_process_request_skips_create_and_returns_true_when_method_is_absent_and_check_mode_set(self, mock_find):
+  def test_process_request_calls_fail_json_when_put_method_response_throws_error(self, mock_find):
     self.method.client.put_method = mock.MagicMock()
     self.method.client.put_integration = mock.MagicMock()
+    self.method.client.put_method_response = mock.MagicMock(side_effect=BotoCoreError())
+    self.method.module.params['method_responses'] = [{'status_code': 200}]
+    self.method.process_request()
+    self.method.client.put_method_response.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET',
+        statusCode='200',
+        responseModels={}
+    )
+    self.method.module.fail_json.assert_called_once_with(
+        msg='Error while creating method via boto3: An unspecified error occurred')
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_skips_create_and_returns_true_when_method_is_absent_and_check_mode_set(self, mock_find):
     self.method.module.check_mode = True
     self.method.process_request()
     self.assertEqual(0, self.method.client.put_method.call_count)
