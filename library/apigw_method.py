@@ -89,8 +89,45 @@ class ArgBuilder:
       httpMethod=params.get('name'),
       authorizationType=params.get('authorization_type'),
       apiKeyRequired=params.get('api_key_required', False),
-      requestParameters=ArgBuilder.request_params(params.get('request_params'))
+      requestParameters=ArgBuilder.request_params(params.get('request_params', []))
     )
+
+  @staticmethod
+  def put_integration(params):
+    args = dict(
+      restApiId=params.get('rest_api_id'),
+      resourceId=params.get('resource_id'),
+      httpMethod=params.get('name'),
+      type=params['method_integration'].get('integration_type'),
+      requestParameters=ArgBuilder.request_params(params['method_integration'].get('integration_params', [])),
+      requestTemplates=ArgBuilder.add_templates(params['method_integration'].get('request_templates', []))
+    )
+
+    optional_map = {
+      'http_method': 'integrationHttpMethod',
+      'uri': 'uri',
+      'passthrough_behavior': 'passthroughBehavior',
+      'cache_namespace': 'cacheNamespace',
+      'cache_key_parameters': 'cacheKeyParameters'
+    }
+
+    ArgBuilder.add_optional_params(params['method_integration'], args, optional_map)
+
+    return args
+
+  @staticmethod
+  def add_templates(params):
+    resp = {}
+    for p in params:
+      resp[p.get('content_type')] = p.get('template')
+
+    return resp
+
+  @staticmethod
+  def add_optional_params(params, args_dict, optional_args):
+    for arg in optional_args:
+      if arg in params:
+        args_dict[optional_args[arg]] = params.get(arg)
 
   @staticmethod
   def request_params(params_list):
@@ -98,7 +135,10 @@ class ArgBuilder:
 
     for param in params_list:
       key = "method.request.{0}.{1}".format(param['location'], param['name'])
-      params[key] = param['param_required']
+      if 'param_required' in param:
+        params[key] = param['param_required']
+      elif 'value' in param:
+        params[key] = param['value']
 
     return params
 
@@ -278,9 +318,10 @@ class ApiGwMethod:
     if not self.module.check_mode:
       try:
         self.client.put_method(**ArgBuilder.put_method(self.module.params))
+        self.client.put_integration(**ArgBuilder.put_integration(self.module.params))
         response = self._find_method()
       except BotoCoreError as e:
-        self.module.fail_json(msg="Error calling boto3 put_method: {}".format(e))
+        self.module.fail_json(msg="Error while creating method via boto3: {}".format(e))
 
     return changed, response
 

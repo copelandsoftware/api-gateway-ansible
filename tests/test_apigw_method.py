@@ -52,6 +52,7 @@ class TestApiGwMethod(unittest.TestCase):
       'authorization_type': 'NONE',
       'api_key_required': False,
       'request_params': [],
+      'method_integration': {'integration_type': 'value'},
       'state': 'present'
     }
     reload(apigw_method)
@@ -228,10 +229,51 @@ class TestApiGwMethod(unittest.TestCase):
         restApiId='restid',
         resourceId='rsrcid',
         httpMethod='GET',
-				authorizationType='NONE',
+        authorizationType='NONE',
         apiKeyRequired=True,
         requestParameters=request_params
     )
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_calls_put_integration_when_method_is_absent(self, mock_find):
+    p = {
+      'integration_type': 'AWS',
+      'http_method': 'POST',
+      'uri': 'valid_uri',
+      'passthrough_behavior': 'ptb',
+      'request_templates': [{'content_type': 'application/json', 'template': '{}'}],
+      'cache_namespace': 'cn',
+      'cache_key_parameters': ['param1', 'param2'],
+      'integration_params': [
+        {'name': 'qs_param', 'value': 'qsval', 'location': 'querystring'},
+        {'name': 'path_param', 'value': 'pathval', 'location': 'path'},
+        {'name': 'header_param', 'value': 'headerval', 'location': 'header'}
+      ]
+    }
+    self.method.module.params['method_integration'] = p;
+    expected = dict(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      type='AWS',
+      integrationHttpMethod='POST',
+      uri='valid_uri',
+      requestParameters={
+        'method.request.querystring.qs_param': 'qsval',
+        'method.request.path.path_param': 'pathval',
+        'method.request.header.header_param': 'headerval'
+      },
+      requestTemplates={'application/json': '{}'},
+      passthroughBehavior='ptb',
+      cacheNamespace='cn',
+      cacheKeyParameters=['param1', 'param2']
+    )
+
+    self.method.client.put_method = mock.MagicMock()
+    self.method.client.put_integration = mock.MagicMock()
+    self.method.process_request()
+
+    self.method.client.put_integration.assert_called_once_with(**expected)
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_calls_fail_json_when_put_method_throws_error(self, mock_find):
@@ -241,32 +283,37 @@ class TestApiGwMethod(unittest.TestCase):
         restApiId='restid',
         resourceId='rsrcid',
         httpMethod='GET',
-				authorizationType='NONE',
+        authorizationType='NONE',
         apiKeyRequired=False,
         requestParameters={}
     )
     self.method.module.fail_json.assert_called_once_with(
-        msg='Error calling boto3 put_method: An unspecified error occurred')
+        msg='Error while creating method via boto3: An unspecified error occurred')
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
-  def test_process_request_skips_create_and_returns_true_when_method_is_absent(self, mock_find):
-    self.method.client.put_method = mock.MagicMock(side_effect=BotoCoreError())
+  def test_process_request_calls_fail_json_when_put_integration_throws_error(self, mock_find):
+    self.method.client.put_method = mock.MagicMock()
+    self.method.client.put_integration = mock.MagicMock(side_effect=BotoCoreError())
     self.method.process_request()
-    self.method.module.check_mode = True
-    self.method.client.put_method.assert_called_once_with(
+    self.method.client.put_integration.assert_called_once_with(
         restApiId='restid',
         resourceId='rsrcid',
         httpMethod='GET',
-				authorizationType='NONE',
-        apiKeyRequired=False,
-        requestParameters={}
+        type='value',
+        requestParameters={},
+        requestTemplates={}
     )
+    self.method.module.fail_json.assert_called_once_with(
+        msg='Error while creating method via boto3: An unspecified error occurred')
+
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_skips_create_and_returns_true_when_method_is_absent_and_check_mode_set(self, mock_find):
     self.method.client.put_method = mock.MagicMock()
+    self.method.client.put_integration = mock.MagicMock()
     self.method.module.check_mode = True
     self.method.process_request()
     self.assertEqual(0, self.method.client.put_method.call_count)
+    self.assertEqual(0, self.method.client.put_integration.call_count)
     self.method.module.exit_json.assert_called_once_with(changed=True, method=None)
 
 
