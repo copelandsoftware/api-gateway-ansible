@@ -301,6 +301,57 @@ class TestApiGwMethod(unittest.TestCase):
       self.method.client.put_method_response.assert_any_call(**kwargs)
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_calls_put_integration_response_when_method_is_absent(self, mock_find):
+    p = [
+        {
+          'status_code': 200,
+          'is_default': True,
+        },
+        {
+          'status_code': 400,
+          'is_default': False,
+          'pattern': '.*Bad Request.*',
+          'response_params': [
+            {'name': 'qs_param', 'value': 'qsval', 'location': 'querystring'},
+            {'name': 'path_param', 'value': 'pathval', 'location': 'path'},
+            {'name': 'header_param', 'value': 'headerval', 'location': 'header'}
+          ],
+          'response_templates': [{'content_type': 'application/json', 'template': '{}'}]
+        },
+    ]
+    self.method.module.params['integration_responses'] = p;
+    expected = [
+      dict(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET',
+        statusCode='200',
+        selectionPattern='',
+        responseParameters={},
+        responseTemplates={}
+      ),
+      dict(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET',
+        statusCode='400',
+        selectionPattern='.*Bad Request.*',
+        responseParameters={
+          'method.request.querystring.qs_param': 'qsval',
+          'method.request.path.path_param': 'pathval',
+          'method.request.header.header_param': 'headerval'
+        },
+        responseTemplates={'application/json': '{}'}
+      ),
+    ]
+
+    self.method.process_request()
+
+    self.assertEqual(2, self.method.client.put_integration_response.call_count)
+    for kwargs in expected:
+      self.method.client.put_integration_response.assert_any_call(**kwargs)
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_calls_fail_json_when_put_method_throws_error(self, mock_find):
     self.method.client.put_method = mock.MagicMock(side_effect=BotoCoreError())
     self.method.process_request()
@@ -341,6 +392,23 @@ class TestApiGwMethod(unittest.TestCase):
         httpMethod='GET',
         statusCode='200',
         responseModels={}
+    )
+    self.method.module.fail_json.assert_called_once_with(
+        msg='Error while creating method via boto3: An unspecified error occurred')
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_calls_fail_json_when_put_integration_response_throws_error(self, mock_find):
+    self.method.client.put_integration_response = mock.MagicMock(side_effect=BotoCoreError())
+    self.method.module.params['integration_responses'] = [{'status_code': 200, 'is_default': True}]
+    self.method.process_request()
+    self.method.client.put_integration_response.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET',
+        statusCode='200',
+        selectionPattern='',
+        responseParameters={},
+        responseTemplates={}
     )
     self.method.module.fail_json.assert_called_once_with(
         msg='Error while creating method via boto3: An unspecified error occurred')

@@ -135,6 +135,24 @@ class ArgBuilder:
     return args
 
   @staticmethod
+  def put_integration_response(params):
+    args = []
+
+    for ir_params in params.get('integration_responses', []):
+      kwargs = dict(
+        restApiId=params.get('rest_api_id'),
+        resourceId=params.get('resource_id'),
+        httpMethod=params.get('name'),
+        statusCode=str(ir_params.get('status_code')),
+        selectionPattern='' if ir_params['is_default'] else ir_params.get('pattern')
+      )
+      kwargs['responseParameters'] = ArgBuilder.request_params(ir_params.get('response_params', []))
+      kwargs['responseTemplates'] = ArgBuilder.add_templates(ir_params.get('response_templates', []))
+      args.append(kwargs)
+
+    return args
+
+  @staticmethod
   def add_templates(params):
     resp = {}
     for p in params:
@@ -340,6 +358,8 @@ class ApiGwMethod:
         self.client.put_integration(**ArgBuilder.put_integration(self.module.params))
         for args in ArgBuilder.put_method_response(self.module.params):
           self.client.put_method_response(**args)
+        for args in ArgBuilder.put_integration_response(self.module.params):
+          self.client.put_integration_response(**args)
         response = self._find_method()
       except BotoCoreError as e:
         self.module.fail_json(msg="Error while creating method via boto3: {}".format(e))
