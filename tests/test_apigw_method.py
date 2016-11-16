@@ -45,6 +45,11 @@ class TestApiGwMethod(unittest.TestCase):
     self.module.fail_json = mock.MagicMock()
     self.method  = ApiGwMethod(self.module)
     self.method.client = mock.MagicMock()
+    self.method.client.get_method = mock.MagicMock()
+    self.method.client.put_method = mock.MagicMock()
+    self.method.client.put_method_response = mock.MagicMock()
+    self.method.client.put_integration = mock.MagicMock()
+    self.method.client.put_integration_response = mock.MagicMock()
     self.method.module.params = {
       'rest_api_id': 'restid',
       'resource_id': 'rsrcid',
@@ -196,7 +201,6 @@ class TestApiGwMethod(unittest.TestCase):
   @patch.object(ApiGwMethod, '_find_method', side_effect=[None, 'Called post-create'])
   def test_process_request_calls_get_method_and_returns_result_after_create_when_method_is_absent(self, mock_find):
 
-    self.method.client.put_method = mock.MagicMock()
     self.method.process_request()
 
     self.method.module.exit_json.assert_called_once_with(changed=True, method='Called post-create')
@@ -223,7 +227,6 @@ class TestApiGwMethod(unittest.TestCase):
       'method.request.header.header_param': True
     }
 
-    self.method.client.put_method = mock.MagicMock(return_value='create_response')
     self.method.process_request()
 
     self.method.client.put_method.assert_called_once_with(
@@ -270,8 +273,6 @@ class TestApiGwMethod(unittest.TestCase):
       cacheKeyParameters=['param1', 'param2']
     )
 
-    self.method.client.put_method = mock.MagicMock()
-    self.method.client.put_integration = mock.MagicMock()
     self.method.process_request()
 
     self.method.client.put_integration.assert_called_once_with(**expected)
@@ -293,9 +294,6 @@ class TestApiGwMethod(unittest.TestCase):
       dict(restApiId='restid', resourceId='rsrcid', httpMethod='GET', statusCode='500', responseModels={})
     ]
 
-    self.method.client.put_method = mock.MagicMock()
-    self.method.client.put_integration = mock.MagicMock()
-    self.method.client.put_method_response = mock.MagicMock()
     self.method.process_request()
 
     self.assertEqual(3, self.method.client.put_method_response.call_count)
@@ -319,7 +317,6 @@ class TestApiGwMethod(unittest.TestCase):
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_calls_fail_json_when_put_integration_throws_error(self, mock_find):
-    self.method.client.put_method = mock.MagicMock()
     self.method.client.put_integration = mock.MagicMock(side_effect=BotoCoreError())
     self.method.process_request()
     self.method.client.put_integration.assert_called_once_with(
@@ -335,8 +332,6 @@ class TestApiGwMethod(unittest.TestCase):
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_calls_fail_json_when_put_method_response_throws_error(self, mock_find):
-    self.method.client.put_method = mock.MagicMock()
-    self.method.client.put_integration = mock.MagicMock()
     self.method.client.put_method_response = mock.MagicMock(side_effect=BotoCoreError())
     self.method.module.params['method_responses'] = [{'status_code': 200}]
     self.method.process_request()
