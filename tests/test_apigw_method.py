@@ -523,6 +523,30 @@ class TestApiGwMethod(unittest.TestCase):
             'msg': "'pattern' must be provided when 'is_default' is False"
           }
         },
+        {
+          'changes': {},
+          'delete_keys': ['method_integration'],
+          'error': {
+            'param': 'method_integration',
+            'msg': "'method_integration' must be provided when 'state' is present"
+          }
+        },
+        {
+          'changes': {},
+          'delete_keys': ['method_responses'],
+          'error': {
+            'param': 'method_responses',
+            'msg': "'method_responses' must be provided when 'state' is present"
+          }
+        },
+        {
+          'changes': {},
+          'delete_keys': ['integration_responses'],
+          'error': {
+            'param': 'integration_responses',
+            'msg': "'integration_responses' must be provided when 'state' is present"
+          }
+        },
     ]
 
     for test in tests:
@@ -563,8 +587,8 @@ class TestApiGwMethod(unittest.TestCase):
                        param_required=dict(type='bool')
                      ),
                      method_integration=dict(
-                       required=True,
                        type='dict',
+                       default={},
                        integration_type=dict(required=False, default='AWS', choices=['AWS', 'MOCK', 'HTTP', 'HTTP_PROXY', 'AWS_PROXY']),
                        http_method=dict(required=False, default='POST', choices=['POST', 'GET', 'PUT']),
                        uri=dict(required=False),
@@ -589,7 +613,7 @@ class TestApiGwMethod(unittest.TestCase):
                      ),
                      method_responses=dict(
                        type='list',
-                       required=True,
+                       default=[],
                        status_code=dict(required=True),
                        response_models=dict(
                          type='list',
@@ -601,7 +625,7 @@ class TestApiGwMethod(unittest.TestCase):
                      ),
                      integration_responses=dict(
                        type='list',
-                       required=True,
+                       default=[],
                        status_code=dict(required=True),
                        is_default=dict(required=False, default=False, type='bool'),
                        pattern=dict(required=False),

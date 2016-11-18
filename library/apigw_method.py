@@ -216,8 +216,8 @@ class ApiGwMethod:
           param_required=dict(type='bool')
         ),
         method_integration=dict(
-          required=True,
           type='dict',
+          default={},
           integration_type=dict(
             required=False,
             default='AWS',
@@ -250,7 +250,7 @@ class ApiGwMethod:
         ),
         method_responses=dict(
           type='list',
-          required=True,
+          default=[],
           status_code=dict(required=True),
           response_models=dict(
             type='list',
@@ -262,7 +262,7 @@ class ApiGwMethod:
         ),
         integration_responses=dict(
           type='list',
-          required=True,
+          default=[],
           status_code=dict(required=True),
           is_default=dict(required=False, default=False, type='bool'),
           pattern=dict(required=False),
@@ -292,6 +292,11 @@ class ApiGwMethod:
     :return: Returns nothing
     """
     p = self.module.params
+    if p['state'] == 'present':
+      for param in ['method_integration', 'method_responses', 'integration_responses']:
+        if param not in p:
+          raise InvalidInputError(param, "'{}' must be provided when 'state' is present".format(param))
+
     if p['authorization_type'] == 'CUSTOM' and 'authorizer_id' not in p:
       raise InvalidInputError('authorizer_id', "authorizer_id must be provided when authorization_type is 'CUSTOM'")
 
