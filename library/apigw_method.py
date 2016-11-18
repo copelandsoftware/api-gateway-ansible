@@ -89,7 +89,7 @@ class ArgBuilder:
       httpMethod=params.get('name'),
       authorizationType=params.get('authorization_type'),
       apiKeyRequired=params.get('api_key_required', False),
-      requestParameters=ArgBuilder.request_params(params.get('request_params', []))
+      requestParameters=ArgBuilder.param_transformer(params.get('request_params', []), 'request')
     )
 
   @staticmethod
@@ -99,7 +99,7 @@ class ArgBuilder:
       resourceId=params.get('resource_id'),
       httpMethod=params.get('name'),
       type=params['method_integration'].get('integration_type'),
-      requestParameters=ArgBuilder.request_params(params['method_integration'].get('integration_params', [])),
+      requestParameters=ArgBuilder.param_transformer(params['method_integration'].get('integration_params', []), 'request'),
       requestTemplates=ArgBuilder.add_templates(params['method_integration'].get('request_templates', []))
     )
 
@@ -144,9 +144,9 @@ class ArgBuilder:
         resourceId=params.get('resource_id'),
         httpMethod=params.get('name'),
         statusCode=str(ir_params.get('status_code')),
-        selectionPattern='' if ir_params['is_default'] else ir_params.get('pattern')
+        selectionPattern='' if 'is_default' in ir_params and ir_params['is_default'] else ir_params.get('pattern')
       )
-      kwargs['responseParameters'] = ArgBuilder.request_params(ir_params.get('response_params', []))
+      kwargs['responseParameters'] = ArgBuilder.param_transformer(ir_params.get('response_params', []), 'response')
       kwargs['responseTemplates'] = ArgBuilder.add_templates(ir_params.get('response_templates', []))
       args.append(kwargs)
 
@@ -167,11 +167,11 @@ class ArgBuilder:
         args_dict[optional_args[arg]] = params.get(arg)
 
   @staticmethod
-  def request_params(params_list):
+  def param_transformer(params_list, type):
     params = {}
 
     for param in params_list:
-      key = "method.request.{0}.{1}".format(param['location'], param['name'])
+      key = "method.{0}.{1}.{2}".format(type, param['location'], param['name'])
       if 'param_required' in param:
         params[key] = param['param_required']
       elif 'value' in param:
@@ -217,6 +217,7 @@ class ApiGwMethod:
         ),
         method_integration=dict(
           required=True,
+          type='dict',
           integration_type=dict(
             required=False,
             default='AWS',
@@ -270,7 +271,7 @@ class ApiGwMethod:
             required=False,
             default=[],
             name=dict(required=True),
-            location=dict(required=True, choices=['querystring', 'path', 'header']),
+            location=dict(required=True, choices=['body', 'header']),
             value=dict(required=True)
           ),
           response_templates=dict(

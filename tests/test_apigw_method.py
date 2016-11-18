@@ -312,8 +312,7 @@ class TestApiGwMethod(unittest.TestCase):
           'is_default': False,
           'pattern': '.*Bad Request.*',
           'response_params': [
-            {'name': 'qs_param', 'value': 'qsval', 'location': 'querystring'},
-            {'name': 'path_param', 'value': 'pathval', 'location': 'path'},
+            {'name': 'body_param', 'value': 'json-expression', 'location': 'body'},
             {'name': 'header_param', 'value': 'headerval', 'location': 'header'}
           ],
           'response_templates': [{'content_type': 'application/json', 'template': '{}'}]
@@ -337,9 +336,8 @@ class TestApiGwMethod(unittest.TestCase):
         statusCode='400',
         selectionPattern='.*Bad Request.*',
         responseParameters={
-          'method.request.querystring.qs_param': 'qsval',
-          'method.request.path.path_param': 'pathval',
-          'method.request.header.header_param': 'headerval'
+          'method.response.body.body_param': 'json-expression',
+          'method.response.header.header_param': 'headerval'
         },
         responseTemplates={'application/json': '{}'}
       ),
@@ -566,6 +564,7 @@ class TestApiGwMethod(unittest.TestCase):
                      ),
                      method_integration=dict(
                        required=True,
+                       type='dict',
                        integration_type=dict(required=False, default='AWS', choices=['AWS', 'MOCK', 'HTTP', 'HTTP_PROXY', 'AWS_PROXY']),
                        http_method=dict(required=False, default='POST', choices=['POST', 'GET', 'PUT']),
                        uri=dict(required=False),
@@ -611,7 +610,7 @@ class TestApiGwMethod(unittest.TestCase):
                          required=False,
                          default=[],
                          name=dict(required=True),
-                         location=dict(required=True, choices=['querystring', 'path', 'header']),
+                         location=dict(required=True, choices=['body', 'header']),
                          value=dict(required=True)
                        ),
                        response_templates=dict(
