@@ -82,6 +82,45 @@ class InvalidInputError(Exception):
 
 class ArgBuilder:
   @staticmethod
+  def create_patch(op, path, value=None):
+    resp = {'op': op, 'path': path}
+    if value is not None:
+      resp['value'] = str(value)
+    return resp
+
+  @staticmethod
+  def patch_builder(method, params, param_map):
+    ops = []
+    for ans_param, boto_param in param_map.iteritems():
+      if ans_param not in params and boto_param not in method:
+        pass
+      elif ans_param not in params and boto_param in method:
+        ops.append(ArgBuilder.create_patch('remove', "/{}".format(boto_param)))
+      elif ans_param in params and boto_param not in method:
+        ops.append(ArgBuilder.create_patch('add', "/{}".format(boto_param), value=params[ans_param]))
+      elif str(params[ans_param]) != str(method[boto_param]):
+        ops.append(ArgBuilder.create_patch('replace', "/{}".format(boto_param), value=params[ans_param]))
+
+    return ops
+
+  @staticmethod
+  def transformed_patch_builder(aws_dict, ans_list, type, prefix):
+    ops = []
+    ans_dict = ArgBuilder.param_transformer(ans_list, type)
+
+    for k in ans_dict.keys():
+      if k not in aws_dict[prefix]:
+        ops.append(ArgBuilder.create_patch('add', "/{}/{}".format(prefix, k), value=ans_dict[k]))
+      elif str(ans_dict[k]) != str(aws_dict[prefix][k]):
+        ops.append(ArgBuilder.create_patch('replace', "/{}/{}".format(prefix, k), value=ans_dict[k]))
+
+    for k in aws_dict[prefix].keys():
+      if k not in ans_dict:
+        ops.append(ArgBuilder.create_patch('remove', "/{}/{}".format(prefix, k)))
+
+    return ops
+
+  @staticmethod
   def put_method(params):
     return dict(
       restApiId=params.get('rest_api_id'),
@@ -91,6 +130,31 @@ class ArgBuilder:
       apiKeyRequired=params.get('api_key_required', False),
       requestParameters=ArgBuilder.param_transformer(params.get('request_params', []), 'request')
     )
+
+  @staticmethod
+  def update_method(method, params):
+    patches = {}
+
+    param_map = {
+      'authorization_type': 'authorizationType',
+      'authorizer_id': 'authorizerId',
+      'api_key_required': 'apiKeyRequired',
+    }
+
+    ops = ArgBuilder.patch_builder(method, params, param_map)
+    ops.extend(
+      ArgBuilder.transformed_patch_builder(method, params['request_params'], 'request', 'requestParameters')
+    )
+
+    if ops:
+      patches = dict(
+        restApiId=params.get('rest_api_id'),
+        resourceId=params.get('resource_id'),
+        httpMethod=params.get('name'),
+        patchOperations=ops
+      )
+
+    return patches
 
   @staticmethod
   def put_integration(params):
@@ -357,7 +421,6 @@ class ApiGwMethod:
     """
     response = None
     changed = True
-    p = self
     if not self.module.check_mode:
       try:
         self.client.put_method(**ArgBuilder.put_method(self.module.params))
@@ -369,6 +432,14 @@ class ApiGwMethod:
         response = self._find_method()
       except BotoCoreError as e:
         self.module.fail_json(msg="Error while creating method via boto3: {}".format(e))
+
+    return changed, response
+
+  def _update_method(self):
+    response = None
+    changed = True
+
+    self.client.update_method(**ArgBuilder.update_method(self.method, self.module.params))
 
     return changed, response
 
@@ -385,8 +456,10 @@ class ApiGwMethod:
     if self.method is not None and self.module.params.get('state') == 'absent':
       self._delete_method()
       changed = True
-    elif self.module.params.get('state') == 'present':
+    elif self.module.params.get('state') == 'present' and self.method is None:
       (changed, response) = self._create_method()
+    elif self.module.params.get('state') == 'present':
+      (changed, response) = self._update_method()
 
     self.module.exit_json(changed=changed, method=response)
 

@@ -102,8 +102,9 @@ class TestApiGwMethod(unittest.TestCase):
 
 
 ### Find tests
+  @patch.object(ApiGwMethod, '_update_method', return_value=[None, None])
   @patch.object(ApiGwMethod, '_create_method', return_value=[None, None])
-  def test_process_request_gets_method_on_invocation(self, mock_create):
+  def test_process_request_gets_method_on_invocation(self, mock_create, mock_update):
     self.method.client.get_method=mock.MagicMock(return_value='response')
     self.method.process_request()
 
@@ -196,6 +197,51 @@ class TestApiGwMethod(unittest.TestCase):
     self.assertEqual(0, self.method.client.delete_method.call_count)
     self.method.module.exit_json.assert_called_once_with(changed=False, method=None)
 ### End delete
+
+### Update
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_calls_update_method_when_present_and_changed(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'apiKeyRequired': False,
+      'authorizationType': 'NONE',
+      'httpMethod': 'GET',
+      'requestParameters': {'method.request.querystring.qs_test': False, 'method.request.header.frank': True}
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'api_key_required': True,
+      'authorizer_id': 'authid',
+      'request_params': [
+        {'name': 'bob', 'location': 'path', 'param_required': True},
+        {'name': 'frank', 'location': 'header', 'param_required': False},
+      ],
+      'state': 'present'
+    }
+
+    expected_patch_ops = [
+      {'op': 'replace', 'path': '/apiKeyRequired', 'value': 'True'},
+      {'op': 'remove', 'path': '/authorizationType'},
+      {'op': 'add', 'path': '/authorizerId', 'value': 'authid'},
+      {'op': 'add', 'path': '/requestParameters/method.request.path.bob', 'value': 'True'},
+      {'op': 'remove', 'path': '/requestParameters/method.request.querystring.qs_test'},
+      {'op': 'replace', 'path': '/requestParameters/method.request.header.frank', 'value': 'False'},
+    ]
+
+    self.method.process_request()
+
+    self.method.client.update_method.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      patchOperations=mock.ANY
+    )
+    self.assertItemsEqual(expected_patch_ops, self.method.client.update_method.call_args[1]['patchOperations'])
+
+### End update
 
 ### Create tests
   @patch.object(ApiGwMethod, '_find_method', side_effect=[None, 'Called post-create'])
