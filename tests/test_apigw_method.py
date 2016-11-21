@@ -2,7 +2,7 @@
 # TODO: License goes here
 
 import library.apigw_method as apigw_method
-from library.apigw_method import ApiGwMethod, InvalidInputError
+from library.apigw_method import ApiGwMethod, InvalidInputError, ArgBuilder
 import mock
 from mock import patch
 from mock import create_autospec
@@ -240,6 +240,42 @@ class TestApiGwMethod(unittest.TestCase):
       patchOperations=mock.ANY
     )
     self.assertItemsEqual(expected_patch_ops, self.method.client.update_method.call_args[1]['patchOperations'])
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method', return_value={})
+  def test_process_request_skips_update_and_returns_true_when_check_mode_set(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'apiKeyRequired': False,
+      'authorizationType': 'NONE',
+      'httpMethod': 'GET',
+      'requestParameters': {}
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'api_key_required': True,
+      'authorizer_id': 'authid',
+      'state': 'present'
+    }
+    self.method.module.check_mode = True
+    self.method.process_request()
+
+    self.assertEqual(0, self.method.client.update_method.call_count)
+    self.method.module.exit_json(changed=True, method=None)
+
+  @patch('library.apigw_method.ArgBuilder')
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method', return_value={})
+  def test_process_request_calls_fail_json_when_update_method_raises_exception(self, mock_find, mock_vp, mock_um):
+    mock_um.update_method = mock.MagicMock(return_value={'args': 'things'})
+    self.method.client.update_method = mock.MagicMock(side_effect=BotoCoreError())
+    self.method.process_request()
+
+    self.method.client.update_method.assert_called_once_with(args="things")
+    self.method.module.fail_json(
+        msg='Error while updating method via boto3: An unspecified error occurred')
 
 ### End update
 

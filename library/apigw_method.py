@@ -143,7 +143,7 @@ class ArgBuilder:
 
     ops = ArgBuilder.patch_builder(method, params, param_map)
     ops.extend(
-      ArgBuilder.transformed_patch_builder(method, params['request_params'], 'request', 'requestParameters')
+      ArgBuilder.transformed_patch_builder(method, params.get('request_params', []), 'request', 'requestParameters')
     )
 
     if ops:
@@ -437,9 +437,16 @@ class ApiGwMethod:
 
   def _update_method(self):
     response = None
-    changed = True
+    changed = False
 
-    self.client.update_method(**ArgBuilder.update_method(self.method, self.module.params))
+    try:
+        um_args = ArgBuilder.update_method(self.method, self.module.params)
+        if um_args:
+          changed = True
+          if not self.module.check_mode:
+            self.client.update_method(**um_args)
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error while updating method via boto3: {}".format(e))
 
     return changed, response
 
