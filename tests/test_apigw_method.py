@@ -2,7 +2,7 @@
 # TODO: License goes here
 
 import library.apigw_method as apigw_method
-from library.apigw_method import ApiGwMethod, InvalidInputError, ArgBuilder
+from library.apigw_method import ApiGwMethod, InvalidInputError
 import mock
 from mock import patch
 from mock import create_autospec
@@ -35,6 +35,9 @@ def purge(a, keys):
       a.pop(key, None)
 
   return a
+
+def mock_args(*args, **kwargs):
+  return {'mock': 'args'}
 
 class TestApiGwMethod(unittest.TestCase):
 
@@ -199,6 +202,7 @@ class TestApiGwMethod(unittest.TestCase):
 ### End delete
 
 ### Update
+  @patch('library.apigw_method.put_integration', mock_args)
   @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method')
   def test_process_request_calls_update_method_when_present_and_changed(self, mock_find, mock_vp):
@@ -241,6 +245,7 @@ class TestApiGwMethod(unittest.TestCase):
     )
     self.assertItemsEqual(expected_patch_ops, self.method.client.update_method.call_args[1]['patchOperations'])
 
+  @patch('library.apigw_method.put_integration', mock_args)
   @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method', return_value={})
   def test_process_request_skips_update_and_returns_true_when_check_mode_set(self, mock_find, mock_vp):

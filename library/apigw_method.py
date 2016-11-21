@@ -80,217 +80,204 @@ class InvalidInputError(Exception):
     """
     Exception.__init__(self, "Error validating {0}: {1}".format(param, fail_message))
 
-class ArgBuilder:
-  @staticmethod
-  def create_patch(op, path, prefix=None, value=None):
-    if re.search('/', path):
-      path = re.sub('/', '~1', path)
+def create_patch(op, path, prefix=None, value=None):
+  if re.search('/', path):
+    path = re.sub('/', '~1', path)
 
-    path = "/{}/{}".format(prefix, path) if prefix else "/{}".format(path)
+  path = "/{}/{}".format(prefix, path) if prefix else "/{}".format(path)
 
-    resp = {'op': op, 'path': path}
-    if value is not None:
-      resp['value'] = str(value)
-    return resp
+  resp = {'op': op, 'path': path}
+  if value is not None:
+    resp['value'] = str(value)
+  return resp
 
-  @staticmethod
-  def patch_builder(method, params, param_map):
-    ops = []
-    for ans_param, boto_param in param_map.iteritems():
-      if ans_param not in params and boto_param not in method:
-        pass
-      elif ans_param not in params and boto_param in method:
-        ops.append(ArgBuilder.create_patch('remove', boto_param))
-      elif ans_param in params and boto_param not in method:
-        ops.append(ArgBuilder.create_patch('add', boto_param, value=params[ans_param]))
-      elif str(params[ans_param]) != str(method[boto_param]):
-        ops.append(ArgBuilder.create_patch('replace', boto_param, value=params[ans_param]))
+def patch_builder(method, params, param_map):
+  ops = []
+  for ans_param, boto_param in param_map.iteritems():
+    if ans_param not in params and boto_param not in method:
+      pass
+    elif ans_param not in params and boto_param in method:
+      ops.append(create_patch('remove', boto_param))
+    elif ans_param in params and boto_param not in method:
+      ops.append(create_patch('add', boto_param, value=params[ans_param]))
+    elif str(params[ans_param]) != str(method[boto_param]):
+      ops.append(create_patch('replace', boto_param, value=params[ans_param]))
 
-    return ops
+  return ops
 
-  @staticmethod
-  def two_way_compare_patch_builder(aws_dict, ans_dict, prefix):
-    ops = []
+def two_way_compare_patch_builder(aws_dict, ans_dict, prefix):
+  ops = []
 
-    for k in ans_dict.keys():
-      if k not in aws_dict[prefix]:
-        ops.append(ArgBuilder.create_patch('add', k, prefix=prefix, value=ans_dict[k]))
-      elif str(ans_dict[k]) != str(aws_dict[prefix][k]):
-        ops.append(ArgBuilder.create_patch('replace', k, prefix=prefix, value=ans_dict[k]))
+  for k in ans_dict.keys():
+    if k not in aws_dict.get(prefix, {}):
+      ops.append(create_patch('add', k, prefix=prefix, value=ans_dict[k]))
+    elif str(ans_dict[k]) != str(aws_dict[prefix][k]):
+      ops.append(create_patch('replace', k, prefix=prefix, value=ans_dict[k]))
 
-    for k in aws_dict.get(prefix, {}).keys():
-      if k not in ans_dict:
-        ops.append(ArgBuilder.create_patch('remove', k, prefix=prefix))
+  for k in aws_dict.get(prefix, {}).keys():
+    if k not in ans_dict:
+      ops.append(create_patch('remove', k, prefix=prefix))
 
-    return ops
+  return ops
 
-  @staticmethod
-  def put_method(params):
-    return dict(
+def put_method(params):
+  return dict(
+    restApiId=params.get('rest_api_id'),
+    resourceId=params.get('resource_id'),
+    httpMethod=params.get('name'),
+    authorizationType=params.get('authorization_type'),
+    apiKeyRequired=params.get('api_key_required', False),
+    requestParameters=param_transformer(params.get('request_params', []), 'request')
+  )
+
+def update_method(method, params):
+  patches = {}
+
+  param_map = {
+    'authorization_type': 'authorizationType',
+    'authorizer_id': 'authorizerId',
+    'api_key_required': 'apiKeyRequired',
+  }
+
+  ops = patch_builder(method, params, param_map)
+  ops.extend(
+    two_way_compare_patch_builder(
+      method,
+      param_transformer(params.get('request_params', []), 'request'),
+      'requestParameters'
+    )
+  )
+
+  if ops:
+    patches = dict(
       restApiId=params.get('rest_api_id'),
       resourceId=params.get('resource_id'),
       httpMethod=params.get('name'),
-      authorizationType=params.get('authorization_type'),
-      apiKeyRequired=params.get('api_key_required', False),
-      requestParameters=ArgBuilder.param_transformer(params.get('request_params', []), 'request')
+      patchOperations=ops
     )
 
-  @staticmethod
-  def update_method(method, params):
-    patches = {}
+  return patches
 
-    param_map = {
-      'authorization_type': 'authorizationType',
-      'authorizer_id': 'authorizerId',
-      'api_key_required': 'apiKeyRequired',
-    }
+def put_integration(params):
+  args = dict(
+    restApiId=params.get('rest_api_id'),
+    resourceId=params.get('resource_id'),
+    httpMethod=params.get('name'),
+    type=params['method_integration'].get('integration_type'),
+    requestParameters=param_transformer(params['method_integration'].get('integration_params', []), 'request'),
+    requestTemplates=add_templates(params['method_integration'].get('request_templates', []))
+  )
 
-    ops = ArgBuilder.patch_builder(method, params, param_map)
-    ops.extend(
-      ArgBuilder.two_way_compare_patch_builder(
-        method,
-        ArgBuilder.param_transformer(params.get('request_params', []), 'request'),
-        'requestParameters'
-      )
+  optional_map = {
+    'http_method': 'integrationHttpMethod',
+    'uri': 'uri',
+    'passthrough_behavior': 'passthroughBehavior',
+    'cache_namespace': 'cacheNamespace',
+    'cache_key_parameters': 'cacheKeyParameters'
+  }
+
+  add_optional_params(params['method_integration'], args, optional_map)
+
+  return args
+
+def update_integration(method, params):
+  patches = {}
+
+  mi_params = params.get('method_integration', {})
+
+  param_map = {
+    'integration_type': 'type',
+    'http_method': 'httpMethod',
+    'uri': 'uri',
+    'passthrough_behavior': 'passthroughBehavior',
+    'cache_namespace': 'cacheNamespace',
+    'cache_key_parameters': 'cacheKeyParameters',
+  }
+
+  ops = patch_builder(method.get('methodIntegration', {}), mi_params, param_map)
+  ops.extend(
+    two_way_compare_patch_builder(
+      method.get('methodIntegration', {}),
+      param_transformer(mi_params.get('integration_params', []), 'request'),
+      'requestParameters'
     )
+  )
+  ops.extend(
+    two_way_compare_patch_builder(
+      method.get('methodIntegration', {}),
+      add_templates(mi_params.get('request_templates', [])),
+      'requestTemplates'
+    )
+  )
 
-    if ops:
-      patches = dict(
-        restApiId=params.get('rest_api_id'),
-        resourceId=params.get('resource_id'),
-        httpMethod=params.get('name'),
-        patchOperations=ops
-      )
-
-    return patches
-
-  @staticmethod
-  def put_integration(params):
-    args = dict(
+  if ops:
+    patches = dict(
       restApiId=params.get('rest_api_id'),
       resourceId=params.get('resource_id'),
       httpMethod=params.get('name'),
-      type=params['method_integration'].get('integration_type'),
-      requestParameters=ArgBuilder.param_transformer(params['method_integration'].get('integration_params', []), 'request'),
-      requestTemplates=ArgBuilder.add_templates(params['method_integration'].get('request_templates', []))
+      patchOperations=ops
     )
 
-    optional_map = {
-      'http_method': 'integrationHttpMethod',
-      'uri': 'uri',
-      'passthrough_behavior': 'passthroughBehavior',
-      'cache_namespace': 'cacheNamespace',
-      'cache_key_parameters': 'cacheKeyParameters'
-    }
+  return patches
 
-    ArgBuilder.add_optional_params(params['method_integration'], args, optional_map)
+def put_method_response(params):
+  args = []
 
-    return args
-
-  @staticmethod
-  def update_integration(method, params):
-    patches = {}
-
-    mi_params = params.get('method_integration', {})
-
-    param_map = {
-      'integration_type': 'type',
-      'http_method': 'httpMethod',
-      'uri': 'uri',
-      'passthrough_behavior': 'passthroughBehavior',
-      'cache_namespace': 'cacheNamespace',
-      'cache_key_parameters': 'cacheKeyParameters',
-    }
-
-    ops = ArgBuilder.patch_builder(method.get('methodIntegration', {}), mi_params, param_map)
-    ops.extend(
-      ArgBuilder.two_way_compare_patch_builder(
-        method.get('methodIntegration', {}),
-        ArgBuilder.param_transformer(mi_params.get('integration_params', []), 'request'),
-        'requestParameters'
-      )
+  for mr_params in params.get('method_responses', []):
+    kwargs = dict(
+      restApiId=params.get('rest_api_id'),
+      resourceId=params.get('resource_id'),
+      httpMethod=params.get('name'),
+      statusCode=str(mr_params.get('status_code'))
     )
-    ops.extend(
-      ArgBuilder.two_way_compare_patch_builder(
-        method.get('methodIntegration', {}),
-        ArgBuilder.add_templates(mi_params.get('request_templates', [])),
-        'requestTemplates'
-      )
+    resp_models = {}
+    for model in mr_params.get('response_models', []):
+      resp_models[model.get('content_type')] = model.get('model', 'Empty')
+    kwargs['responseModels'] = resp_models
+    args.append(kwargs)
+
+  return args
+
+def put_integration_response(params):
+  args = []
+
+  for ir_params in params.get('integration_responses', []):
+    kwargs = dict(
+      restApiId=params.get('rest_api_id'),
+      resourceId=params.get('resource_id'),
+      httpMethod=params.get('name'),
+      statusCode=str(ir_params.get('status_code')),
+      selectionPattern='' if 'is_default' in ir_params and ir_params['is_default'] else ir_params.get('pattern')
     )
+    kwargs['responseParameters'] = param_transformer(ir_params.get('response_params', []), 'response')
+    kwargs['responseTemplates'] = add_templates(ir_params.get('response_templates', []))
+    args.append(kwargs)
 
-    if ops:
-      patches = dict(
-        restApiId=params.get('rest_api_id'),
-        resourceId=params.get('resource_id'),
-        httpMethod=params.get('name'),
-        patchOperations=ops
-      )
+  return args
 
-    return patches
+def add_templates(params):
+  resp = {}
+  for p in params:
+    resp[p.get('content_type')] = p.get('template')
 
-  @staticmethod
-  def put_method_response(params):
-    args = []
+  return resp
 
-    for mr_params in params.get('method_responses', []):
-      kwargs = dict(
-        restApiId=params.get('rest_api_id'),
-        resourceId=params.get('resource_id'),
-        httpMethod=params.get('name'),
-        statusCode=str(mr_params.get('status_code'))
-      )
-      resp_models = {}
-      for model in mr_params.get('response_models', []):
-        resp_models[model.get('content_type')] = model.get('model', 'Empty')
-      kwargs['responseModels'] = resp_models
-      args.append(kwargs)
+def add_optional_params(params, args_dict, optional_args):
+  for arg in optional_args:
+    if arg in params:
+      args_dict[optional_args[arg]] = params.get(arg)
 
-    return args
+def param_transformer(params_list, type):
+  params = {}
 
-  @staticmethod
-  def put_integration_response(params):
-    args = []
+  for param in params_list:
+    key = "method.{0}.{1}.{2}".format(type, param['location'], param['name'])
+    if 'param_required' in param:
+      params[key] = param['param_required']
+    elif 'value' in param:
+      params[key] = param['value']
 
-    for ir_params in params.get('integration_responses', []):
-      kwargs = dict(
-        restApiId=params.get('rest_api_id'),
-        resourceId=params.get('resource_id'),
-        httpMethod=params.get('name'),
-        statusCode=str(ir_params.get('status_code')),
-        selectionPattern='' if 'is_default' in ir_params and ir_params['is_default'] else ir_params.get('pattern')
-      )
-      kwargs['responseParameters'] = ArgBuilder.param_transformer(ir_params.get('response_params', []), 'response')
-      kwargs['responseTemplates'] = ArgBuilder.add_templates(ir_params.get('response_templates', []))
-      args.append(kwargs)
-
-    return args
-
-  @staticmethod
-  def add_templates(params):
-    resp = {}
-    for p in params:
-      resp[p.get('content_type')] = p.get('template')
-
-    return resp
-
-  @staticmethod
-  def add_optional_params(params, args_dict, optional_args):
-    for arg in optional_args:
-      if arg in params:
-        args_dict[optional_args[arg]] = params.get(arg)
-
-  @staticmethod
-  def param_transformer(params_list, type):
-    params = {}
-
-    for param in params_list:
-      key = "method.{0}.{1}.{2}".format(type, param['location'], param['name'])
-      if 'param_required' in param:
-        params[key] = param['param_required']
-      elif 'value' in param:
-        params[key] = param['value']
-
-    return params
+  return params
 
 
 class ApiGwMethod:
@@ -472,11 +459,11 @@ class ApiGwMethod:
     changed = True
     if not self.module.check_mode:
       try:
-        self.client.put_method(**ArgBuilder.put_method(self.module.params))
-        self.client.put_integration(**ArgBuilder.put_integration(self.module.params))
-        for args in ArgBuilder.put_method_response(self.module.params):
+        self.client.put_method(**put_method(self.module.params))
+        self.client.put_integration(**put_integration(self.module.params))
+        for args in put_method_response(self.module.params):
           self.client.put_method_response(**args)
-        for args in ArgBuilder.put_integration_response(self.module.params):
+        for args in put_integration_response(self.module.params):
           self.client.put_integration_response(**args)
         response = self._find_method()
       except BotoCoreError as e:
@@ -489,14 +476,17 @@ class ApiGwMethod:
     changed = False
 
     try:
-        um_args = ArgBuilder.update_method(self.method, self.module.params)
+        um_args = update_method(self.method, self.module.params)
         if um_args:
           changed = True
           if not self.module.check_mode:
             self.client.update_method(**um_args)
 
-        ui_args = ArgBuilder.update_integration(self.method, self.module.params)
-        self.client.update_integration(**ui_args)
+        if 'methodIntegration' not in self.method:
+          self.client.put_integration(**put_integration(self.module.params))
+        else:
+          ui_args = update_integration(self.method, self.module.params)
+          self.client.update_integration(**ui_args)
     except BotoCoreError as e:
       self.module.fail_json(msg="Error while updating method via boto3: {}".format(e))
 
