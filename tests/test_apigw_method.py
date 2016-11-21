@@ -253,7 +253,8 @@ class TestApiGwMethod(unittest.TestCase):
       'apiKeyRequired': False,
       'authorizationType': 'NONE',
       'httpMethod': 'GET',
-      'requestParameters': {}
+      'requestParameters': {},
+      'methodIntegration': {}
     }
 
     self.method.module.params = {

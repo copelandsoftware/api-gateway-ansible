@@ -483,10 +483,14 @@ class ApiGwMethod:
             self.client.update_method(**um_args)
 
         if 'methodIntegration' not in self.method:
+          changed = True
           self.client.put_integration(**put_integration(self.module.params))
         else:
           ui_args = update_integration(self.method, self.module.params)
-          self.client.update_integration(**ui_args)
+          if ui_args:
+            changed = True
+            if not self.module.check_mode:
+              self.client.update_integration(**ui_args)
     except BotoCoreError as e:
       self.module.fail_json(msg="Error while updating method via boto3: {}".format(e))
 
