@@ -82,7 +82,12 @@ class InvalidInputError(Exception):
 
 class ArgBuilder:
   @staticmethod
-  def create_patch(op, path, value=None):
+  def create_patch(op, path, prefix=None, value=None):
+    if re.search('/', path):
+      path = re.sub('/', '~1', path)
+
+    path = "/{}/{}".format(prefix, path) if prefix else "/{}".format(path)
+
     resp = {'op': op, 'path': path}
     if value is not None:
       resp['value'] = str(value)
@@ -95,28 +100,27 @@ class ArgBuilder:
       if ans_param not in params and boto_param not in method:
         pass
       elif ans_param not in params and boto_param in method:
-        ops.append(ArgBuilder.create_patch('remove', "/{}".format(boto_param)))
+        ops.append(ArgBuilder.create_patch('remove', boto_param))
       elif ans_param in params and boto_param not in method:
-        ops.append(ArgBuilder.create_patch('add', "/{}".format(boto_param), value=params[ans_param]))
+        ops.append(ArgBuilder.create_patch('add', boto_param, value=params[ans_param]))
       elif str(params[ans_param]) != str(method[boto_param]):
-        ops.append(ArgBuilder.create_patch('replace', "/{}".format(boto_param), value=params[ans_param]))
+        ops.append(ArgBuilder.create_patch('replace', boto_param, value=params[ans_param]))
 
     return ops
 
   @staticmethod
-  def transformed_patch_builder(aws_dict, ans_list, type, prefix):
+  def two_way_compare_patch_builder(aws_dict, ans_dict, prefix):
     ops = []
-    ans_dict = ArgBuilder.param_transformer(ans_list, type)
 
     for k in ans_dict.keys():
       if k not in aws_dict[prefix]:
-        ops.append(ArgBuilder.create_patch('add', "/{}/{}".format(prefix, k), value=ans_dict[k]))
+        ops.append(ArgBuilder.create_patch('add', k, prefix=prefix, value=ans_dict[k]))
       elif str(ans_dict[k]) != str(aws_dict[prefix][k]):
-        ops.append(ArgBuilder.create_patch('replace', "/{}/{}".format(prefix, k), value=ans_dict[k]))
+        ops.append(ArgBuilder.create_patch('replace', k, prefix=prefix, value=ans_dict[k]))
 
-    for k in aws_dict[prefix].keys():
+    for k in aws_dict.get(prefix, {}).keys():
       if k not in ans_dict:
-        ops.append(ArgBuilder.create_patch('remove', "/{}/{}".format(prefix, k)))
+        ops.append(ArgBuilder.create_patch('remove', k, prefix=prefix))
 
     return ops
 
@@ -143,7 +147,11 @@ class ArgBuilder:
 
     ops = ArgBuilder.patch_builder(method, params, param_map)
     ops.extend(
-      ArgBuilder.transformed_patch_builder(method, params.get('request_params', []), 'request', 'requestParameters')
+      ArgBuilder.two_way_compare_patch_builder(
+        method,
+        ArgBuilder.param_transformer(params.get('request_params', []), 'request'),
+        'requestParameters'
+      )
     )
 
     if ops:
@@ -178,6 +186,47 @@ class ArgBuilder:
     ArgBuilder.add_optional_params(params['method_integration'], args, optional_map)
 
     return args
+
+  @staticmethod
+  def update_integration(method, params):
+    patches = {}
+
+    mi_params = params.get('method_integration', {})
+
+    param_map = {
+      'integration_type': 'type',
+      'http_method': 'httpMethod',
+      'uri': 'uri',
+      'passthrough_behavior': 'passthroughBehavior',
+      'cache_namespace': 'cacheNamespace',
+      'cache_key_parameters': 'cacheKeyParameters',
+    }
+
+    ops = ArgBuilder.patch_builder(method.get('methodIntegration', {}), mi_params, param_map)
+    ops.extend(
+      ArgBuilder.two_way_compare_patch_builder(
+        method.get('methodIntegration', {}),
+        ArgBuilder.param_transformer(mi_params.get('integration_params', []), 'request'),
+        'requestParameters'
+      )
+    )
+    ops.extend(
+      ArgBuilder.two_way_compare_patch_builder(
+        method.get('methodIntegration', {}),
+        ArgBuilder.add_templates(mi_params.get('request_templates', [])),
+        'requestTemplates'
+      )
+    )
+
+    if ops:
+      patches = dict(
+        restApiId=params.get('rest_api_id'),
+        resourceId=params.get('resource_id'),
+        httpMethod=params.get('name'),
+        patchOperations=ops
+      )
+
+    return patches
 
   @staticmethod
   def put_method_response(params):
@@ -445,6 +494,9 @@ class ApiGwMethod:
           changed = True
           if not self.module.check_mode:
             self.client.update_method(**um_args)
+
+        ui_args = ArgBuilder.update_integration(self.method, self.module.params)
+        self.client.update_integration(**ui_args)
     except BotoCoreError as e:
       self.module.fail_json(msg="Error while updating method via boto3: {}".format(e))
 
