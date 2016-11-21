@@ -559,12 +559,15 @@ class ApiGwMethod:
               self.client.update_integration(**ui_args)
 
         umr_args = update_method_response(self.method, self.module.params)
-        for create_kwargs in umr_args['creates']:
-          self.client.put_method_response(**create_kwargs)
-        for patch_kwargs in umr_args['updates']:
-          self.client.update_method_response(**patch_kwargs)
-        for delete_kwargs in umr_args['deletes']:
-          self.client.delete_method_response(**delete_kwargs)
+        if umr_args['creates'] or umr_args['deletes'] or umr_args['updates']:
+          changed = True
+          if not self.module.check_mode:
+            for create_kwargs in umr_args['creates']:
+              self.client.put_method_response(**create_kwargs)
+            for patch_kwargs in umr_args['updates']:
+              self.client.update_method_response(**patch_kwargs)
+            for delete_kwargs in umr_args['deletes']:
+              self.client.delete_method_response(**delete_kwargs)
 
     except BotoCoreError as e:
       self.module.fail_json(msg="Error while updating method via boto3: {}".format(e))

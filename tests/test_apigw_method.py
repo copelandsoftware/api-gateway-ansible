@@ -263,25 +263,230 @@ class TestApiGwMethod(unittest.TestCase):
       'name': 'GET',
       'api_key_required': True,
       'authorizer_id': 'authid',
+      'method_responses': [{'status_code': 202}],
       'state': 'present'
     }
     self.method.module.check_mode = True
     self.method.process_request()
 
     self.assertEqual(0, self.method.client.update_method.call_count)
+    self.assertEqual(0, self.method.client.put_integration.call_count)
+    self.assertEqual(0, self.method.client.update_integration.call_count)
+    self.assertEqual(0, self.method.client.put_method_response.call_count)
+    self.assertEqual(0, self.method.client.update_method_response.call_count)
+    self.assertEqual(0, self.method.client.delete_method_response.call_count)
     self.method.module.exit_json(changed=True, method=None)
 
-  @patch('library.apigw_method.ArgBuilder')
+  @patch('library.apigw_method.update_method', mock_args)
   @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method', return_value={})
-  def test_process_request_calls_fail_json_when_update_method_raises_exception(self, mock_find, mock_vp, mock_um):
-    mock_um.update_method = mock.MagicMock(return_value={'args': 'things'})
+  def test_process_request_calls_fail_json_when_update_method_raises_exception(self, mock_find, mock_vp):
     self.method.client.update_method = mock.MagicMock(side_effect=BotoCoreError())
     self.method.process_request()
 
-    self.method.client.update_method.assert_called_once_with(args="things")
+    self.method.client.update_method.assert_called_once_with(mock="args")
     self.method.module.fail_json(
         msg='Error while updating method via boto3: An unspecified error occurred')
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_calls_update_integration_when_present_and_changed(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'methodIntegration': {
+        'type': 'XXX',
+        'httpMethod': 'POST',
+        'uri': 'less-magical-uri',
+        'passthroughBehavior': 'when_no_templates',
+        'requestParameters': {'method.request.path.bob': 'not-sure'},
+        'cacheNamespace': '',
+        'cacheKeyParameters': [],
+        'requestTemplates': {
+          'deleteme': 'whatevs',
+          'change/me': 'totally different value',
+        }
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_integration': {
+        'integration_type': 'XXX',
+        'http_method': 'POST',
+        'uri': 'magical-uri',
+        'passthrough_behavior': 'when_no_templates',
+        'request_templates': [
+          {'content_type': 'addme', 'template': 'addval'},
+          {'content_type': 'change/me', 'template': 'changeval'},
+        ],
+        'cache_namespace': 'cn',
+        'cache_key_parameters': [],
+        'integration_params': [
+          {'name': 'bob', 'location': 'path', 'value': 'sure'},
+        ],
+      },
+      'state': 'present'
+    }
+
+    expected_patch_ops = [
+      {'op': 'replace', 'path': '/uri', 'value': 'magical-uri'},
+      {'op': 'replace', 'path': '/cacheNamespace', 'value': 'cn'},
+      {'op': 'replace', 'path': '/requestParameters/method.request.path.bob', 'value': 'sure'},
+      {'op': 'add', 'path': '/requestTemplates/addme', 'value': 'addval'},
+      {'op': 'remove', 'path': '/requestTemplates/deleteme'},
+      {'op': 'replace', 'path': '/requestTemplates/change~1me', 'value': 'changeval'},
+    ]
+
+    self.method.process_request()
+
+    self.method.client.update_integration.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      patchOperations=mock.ANY
+    )
+    self.assertItemsEqual(expected_patch_ops, self.method.client.update_integration.call_args[1]['patchOperations'])
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method', return_value={'something': 'here'})
+  def test_process_request_calls_put_integration_when_method_exists_but_integration_does_not(self, mock_find, mock_vp):
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_integration': {
+        'integration_type': 'XXX',
+        'http_method': 'POST',
+        'uri': 'magical-uri',
+        'passthrough_behavior': 'when_no_templates',
+        'request_templates': [
+          {'content_type': 'addme', 'template': 'addval'},
+          {'content_type': 'change/me', 'template': 'changeval'},
+        ],
+        'cache_namespace': 'cn',
+        'cache_key_parameters': [],
+        'integration_params': [
+          {'name': 'bob', 'location': 'path', 'value': 'sure'},
+        ],
+      },
+      'state': 'present'
+    }
+
+    expected = dict(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      type='XXX',
+      integrationHttpMethod='POST',
+      uri='magical-uri',
+      requestParameters={
+        'method.request.path.bob': 'sure',
+      },
+      requestTemplates={'addme': 'addval', 'change/me': 'changeval'},
+      passthroughBehavior='when_no_templates',
+      cacheNamespace='cn',
+      cacheKeyParameters=[]
+    )
+
+    self.method.process_request()
+
+    self.method.client.put_integration.assert_called_once_with(**expected)
+
+  @patch('library.apigw_method.update_method', mock_args)
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method', return_value={})
+  def test_process_request_calls_fail_json_when_update_integration_raises_exception(self, mock_find, mock_vp):
+    self.method.client.update_integration = mock.MagicMock(side_effect=BotoCoreError())
+    self.method.process_request()
+
+    self.method.client.update_method.assert_called_once_with(mock="args")
+    self.method.module.fail_json(
+        msg='Error while updating method via boto3: An unspecified error occurred')
+
+  @patch('library.apigw_method.put_integration', mock_args)
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_updates_method_responses_when_present_and_changed(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'methodResponses': {
+        '202': {'statusCode': '202', 'responseModels': {'application/json': 'Empty', 'delete': 'me'}},
+        '400': {'statusCode': '400'},
+        '404': {'statusCode': '404'}
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_responses': [
+        {'status_code': 202,
+          'response_models': [
+            {'content_type': 'application/json', 'model': 'Error'},
+            {'content_type': 'add', 'model': 'me'}
+        ]},
+        {'status_code': 400},
+        {'status_code': 500},
+      ],
+      'state': 'present'
+    }
+
+    expected_patch_ops = [
+      {'op': 'replace', 'path': '/responseModels/application~1json', 'value': 'Error'},
+      {'op': 'add', 'path': '/responseModels/add', 'value': 'me'},
+      {'op': 'delete', 'path': '/responseModels/delete'},
+    ]
+
+    self.method.process_request()
+
+    self.method.client.update_method_response.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      statusCode='202',
+      patchOperations=mock.ANY
+    )
+    self.assertItemsEqual(expected_patch_ops, self.method.client.update_method_response.call_args[1]['patchOperations'])
+    self.method.client.put_method_response.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      statusCode='500',
+      responseModels={}
+    )
+    self.method.client.delete_method_response.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      statusCode='404'
+    )
+
+  @patch('library.apigw_method.put_integration', mock_args)
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method', return_value={'some': 'thing'})
+  def test_process_request_calls_put_method_response_when_method_exists_without_methodResponses(self, mock_find, mock_vp):
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_responses': [
+        {'status_code': 202, 'response_models': [ {'content_type': 'application/json', 'model': 'Error'}, ]},
+      ],
+      'state': 'present'
+    }
+
+    self.method.process_request()
+
+    self.assertEqual(0, self.method.client.update_method_response.call_count)
+    self.assertEqual(0, self.method.client.delete_method_response.call_count)
+    self.method.client.put_method_response.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      statusCode='202',
+      responseModels={'application/json': 'Error'}
+    )
 
 ### End update
 
