@@ -238,6 +238,71 @@ def put_method_response(params):
 
   return args
 
+def update_method_response(method, params):
+  ops = {
+    'creates': [],
+    'deletes': [],
+    'updates': []
+  }
+
+  patch_dict = {}
+
+  # Coerce params into struct compatible with boto's response
+  mr_dict = {}
+  for p in params.get('method_responses', []):
+    mr_dict[str(p['status_code'])] = {}
+    for model in p.get('response_models', []):
+      mr_dict[str(p['status_code'])][model['content_type']] = model['model']
+
+  mr_aws = method.get('methodResponses', {})
+
+  # Find codes that need to be created and models that need creation or replacement
+  for code in mr_dict.keys():
+    if code not in mr_aws:
+      kwargs = dict(
+        restApiId=params.get('rest_api_id'),
+        resourceId=params.get('resource_id'),
+        httpMethod=params.get('name'),
+        statusCode=code
+      )
+      resp_models = {}
+      for content_type, model in mr_dict[code].iteritems():
+        resp_models[content_type] = model
+      kwargs['responseModels'] = resp_models
+      ops['creates'].append(kwargs)
+    else:
+      for content_type, model in mr_dict[code].iteritems():
+        if content_type not in mr_aws[code]['responseModels']:
+          patch_dict.setdefault(code, []).append(create_patch('add', content_type, prefix='responseModels', value=model))
+        elif model != mr_aws[code]['responseModels'][content_type]:
+          patch_dict.setdefault(code, []).append(create_patch('replace', content_type, prefix='responseModels', value=model))
+
+  # Find codes and response models that need to be deleted
+  for code in mr_aws:
+    if code not in mr_dict:
+      kwargs = dict(
+        restApiId=params.get('rest_api_id'),
+        resourceId=params.get('resource_id'),
+        httpMethod=params.get('name'),
+        statusCode=code
+      )
+      ops['deletes'].append(kwargs)
+    elif 'responseModels' in mr_aws[code]:
+      for content_type, model in mr_aws[code]['responseModels'].iteritems():
+        if content_type not in mr_dict[code]:
+          patch_dict.setdefault(code, []).append(create_patch('delete', content_type, prefix='responseModels'))
+
+  for code in patch_dict:
+    ops['updates'].append(dict(
+      restApiId=params.get('rest_api_id'),
+      resourceId=params.get('resource_id'),
+      httpMethod=params.get('name'),
+      statusCode=code,
+      patchOperations=patch_dict[code]
+    ))
+
+  return ops
+
 def put_integration_response(params):
   args = []
 
@@ -484,13 +549,23 @@ class ApiGwMethod:
 
         if 'methodIntegration' not in self.method:
           changed = True
-          self.client.put_integration(**put_integration(self.module.params))
+          if not self.module.check_mode:
+            self.client.put_integration(**put_integration(self.module.params))
         else:
           ui_args = update_integration(self.method, self.module.params)
           if ui_args:
             changed = True
             if not self.module.check_mode:
               self.client.update_integration(**ui_args)
+
+        umr_args = update_method_response(self.method, self.module.params)
+        for create_kwargs in umr_args['creates']:
+          self.client.put_method_response(**create_kwargs)
+        for patch_kwargs in umr_args['updates']:
+          self.client.update_method_response(**patch_kwargs)
+        for delete_kwargs in umr_args['deletes']:
+          self.client.delete_method_response(**delete_kwargs)
+
     except BotoCoreError as e:
       self.module.fail_json(msg="Error while updating method via boto3: {}".format(e))
 
