@@ -1063,6 +1063,7 @@ class TestApiGwMethod(unittest.TestCase):
                          content_type=dict(required=True),
                          template=dict(required=True)
                        ),
+                       uses_caching=dict(required=False, default=False, type='bool'),
                        cache_namespace=dict(required=False, default=''),
                        cache_key_parameters=dict(required=False, type='list', default=[]),
                        integration_params=dict(

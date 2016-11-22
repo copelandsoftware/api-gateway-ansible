@@ -417,7 +417,7 @@ def add_templates(params):
 
 def add_optional_params(params, args_dict, optional_args):
   for arg in optional_args:
-    if arg in params:
+    if arg in params and params.get(arg) is not None:
       args_dict[optional_args[arg]] = params.get(arg)
 
 def param_transformer(params_list, type):
@@ -490,6 +490,7 @@ class ApiGwMethod:
             content_type=dict(required=True),
             template=dict(required=True)
           ),
+          uses_caching=dict(required=False, default=False, type='bool'),
           cache_namespace=dict(required=False, default=''),
           cache_key_parameters=dict(required=False, type='list', default=[]),
           integration_params=dict(
