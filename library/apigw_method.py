@@ -121,7 +121,7 @@ def two_way_compare_patch_builder(aws_dict, ans_dict, prefix):
   return ops
 
 def put_method(params):
-  return dict(
+  resp = dict(
     restApiId=params.get('rest_api_id'),
     resourceId=params.get('resource_id'),
     httpMethod=params.get('name'),
@@ -129,6 +129,10 @@ def put_method(params):
     apiKeyRequired=params.get('api_key_required', False),
     requestParameters=param_transformer(params.get('request_params', []), 'request')
   )
+
+  add_optional_params(params, resp, {'authorizer_id': 'authorizerId'})
+
+  return resp
 
 def update_method(method, params):
   patches = {}

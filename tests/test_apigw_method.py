@@ -501,6 +501,7 @@ class TestApiGwMethod(unittest.TestCase):
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_calls_put_method_when_method_is_absent(self, mock_find):
     self.method.module.params['api_key_required'] = True
+    self.method.module.params['authorizer_id'] = 'id'
     self.method.module.params['request_params'] = [{
       'name': 'qs_param',
       'param_required': False,
@@ -527,6 +528,7 @@ class TestApiGwMethod(unittest.TestCase):
         resourceId='rsrcid',
         httpMethod='GET',
         authorizationType='NONE',
+        authorizerId='id',
         apiKeyRequired=True,
         requestParameters=request_params
     )
