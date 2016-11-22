@@ -316,13 +316,97 @@ def put_integration_response(params):
       resourceId=params.get('resource_id'),
       httpMethod=params.get('name'),
       statusCode=str(ir_params.get('status_code')),
-      selectionPattern='' if 'is_default' in ir_params and ir_params['is_default'] else ir_params.get('pattern')
+      selectionPattern='' if ir_params.get('is_default', False) else ir_params.get('pattern')
     )
     kwargs['responseParameters'] = param_transformer(ir_params.get('response_params', []), 'response')
     kwargs['responseTemplates'] = add_templates(ir_params.get('response_templates', []))
     args.append(kwargs)
 
   return args
+
+def update_integration_response(method, params):
+  ops = {
+    'creates': [],
+    'deletes': [],
+    'updates': []
+  }
+
+  patch_dict = {}
+
+  # Coerce params into struct compatible with boto's response
+  ir_dict = {}
+  for p in params.get('integration_responses', []):
+    ir_dict[str(p['status_code'])] = {
+      'pattern': '' if p.get('is_default', False) else p.get('pattern'),
+      'response_templates': add_templates(p.get('response_templates', [])),
+      'response_params': param_transformer(p.get('response_params', []), 'response'),
+    }
+
+  ir_aws = method.get('methodIntegration', {}).get('integrationResponses', {})
+
+  # Find codes that need to be created and models that need creation or replacement
+  for code in ir_dict.keys():
+    if code not in ir_aws:
+      kwargs = dict(
+        restApiId=params.get('rest_api_id'),
+        resourceId=params.get('resource_id'),
+        httpMethod=params.get('name'),
+        statusCode=code,
+        selectionPattern=ir_dict[code]['pattern'],
+        responseParameters=ir_dict[code]['response_params'],
+        responseTemplates=ir_dict[code]['response_templates'],
+      )
+      ops['creates'].append(kwargs)
+    else:
+      # selectionPattern
+      if ir_dict[code]['pattern'] != ir_aws[code].get('selectionPattern', ''):
+        patch_dict.setdefault(code, []).append(create_patch('replace', 'selectionPattern', value=ir_dict[code]['pattern']))
+
+      # responseParameters
+      for param, value in ir_dict[code]['response_params'].iteritems():
+        if 'responseParameters' not in ir_aws[code] or param not in ir_aws[code]['responseParameters']:
+          patch_dict.setdefault(code, []).append(create_patch('add', param, prefix='responseParameters', value=value))
+        elif value != ir_aws[code]['responseParameters'][param]:
+          patch_dict.setdefault(code, []).append(create_patch('replace', param, prefix='responseParameters', value=value))
+
+      # responseTemplates
+      for ctype, tmpl in ir_dict[code]['response_templates'].iteritems():
+        if 'responseTemplates' not in ir_aws[code] or ctype not in ir_aws[code]['responseTemplates']:
+          patch_dict.setdefault(code, []).append(create_patch('add', ctype, prefix='responseTemplates', value=tmpl))
+        elif tmpl != ir_aws[code]['responseTemplates'][ctype]:
+          patch_dict.setdefault(code, []).append(create_patch('replace', ctype, prefix='responseTemplates', value=tmpl))
+
+  # Find codes and response models that need to be deleted
+  for code in ir_aws:
+    if code not in ir_dict:
+      kwargs = dict(
+        restApiId=params.get('rest_api_id'),
+        resourceId=params.get('resource_id'),
+        httpMethod=params.get('name'),
+        statusCode=code
+      )
+      ops['deletes'].append(kwargs)
+    else:
+      if 'responseTemplates' in ir_aws[code]:
+        for ctype, tmpl in ir_aws[code]['responseTemplates'].iteritems():
+          if ctype not in ir_dict[code]['response_templates']:
+            patch_dict.setdefault(code, []).append(create_patch('delete', ctype, prefix='responseTemplates'))
+
+      if 'responseParameters' in ir_aws[code]:
+        for param, value in ir_aws[code]['responseParameters'].iteritems():
+          if param not in ir_dict[code]['response_params']:
+            patch_dict.setdefault(code, []).append(create_patch('delete', param, prefix='responseParameters'))
+
+  for code in patch_dict:
+    ops['updates'].append(dict(
+      restApiId=params.get('rest_api_id'),
+      resourceId=params.get('resource_id'),
+      httpMethod=params.get('name'),
+      statusCode=code,
+      patchOperations=patch_dict[code]
+    ))
+
+  return ops
 
 def add_templates(params):
   resp = {}
@@ -572,6 +656,17 @@ class ApiGwMethod:
               self.client.update_method_response(**patch_kwargs)
             for delete_kwargs in umr_args['deletes']:
               self.client.delete_method_response(**delete_kwargs)
+
+        uir_args = update_integration_response(self.method, self.module.params)
+        if uir_args['creates'] or uir_args['deletes'] or uir_args['updates']:
+          changed = True
+          if not self.module.check_mode:
+            for create_kwargs in uir_args['creates']:
+              self.client.put_integration_response(**create_kwargs)
+            for patch_kwargs in uir_args['updates']:
+              self.client.update_integration_response(**patch_kwargs)
+            for delete_kwargs in uir_args['deletes']:
+              self.client.delete_integration_response(**delete_kwargs)
 
     except BotoCoreError as e:
       self.module.fail_json(msg="Error while updating method via boto3: {}".format(e))

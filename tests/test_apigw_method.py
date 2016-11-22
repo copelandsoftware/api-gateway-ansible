@@ -264,6 +264,9 @@ class TestApiGwMethod(unittest.TestCase):
       'api_key_required': True,
       'authorizer_id': 'authid',
       'method_responses': [{'status_code': 202}],
+      'integration_responses': [
+        {'status_code': 202, 'is_default': True}
+      ],
       'state': 'present'
     }
     self.method.module.check_mode = True
@@ -275,6 +278,9 @@ class TestApiGwMethod(unittest.TestCase):
     self.assertEqual(0, self.method.client.put_method_response.call_count)
     self.assertEqual(0, self.method.client.update_method_response.call_count)
     self.assertEqual(0, self.method.client.delete_method_response.call_count)
+    self.assertEqual(0, self.method.client.put_integration_response.call_count)
+    self.assertEqual(0, self.method.client.update_integration_response.call_count)
+    self.assertEqual(0, self.method.client.delete_integration_response.call_count)
     self.method.module.exit_json(changed=True, method=None)
 
   @patch('library.apigw_method.update_method', mock_args)
@@ -486,6 +492,115 @@ class TestApiGwMethod(unittest.TestCase):
       httpMethod='GET',
       statusCode='202',
       responseModels={'application/json': 'Error'}
+    )
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_updates_method_integrations_when_present_and_changed(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'methodIntegration': {
+        'integrationResponses': {
+          '202': {
+            'statusCode': '202',
+            'responseTemplates': {'application/json': 'orig-value', 'delete': 'me'},
+            'responseParameters': {'also-delete': 'me', 'method.response.header.change': 'me'}
+          },
+          '400': {'statusCode': '400', 'selectionPattern': '.*Bad.*'},
+          '404': {'statusCode': '404', 'selectionPattern': '.*Not Found.*'}
+        }
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'integration_responses': [
+        {'status_code': 202,
+          'pattern': 'totally-invalid-but-whatever',
+          'response_templates': [
+            {'content_type': 'application/json', 'template': 'new-value'},
+            {'content_type': 'add', 'template': 'me'}
+          ],
+          'response_params': [
+            {'name': 'addme', 'location': 'body', 'value': 'bodyval'},
+            {'name': 'change', 'location': 'header', 'value': 'newval'},
+          ],
+        },
+        {'status_code': 400, 'pattern': '.*Bad.*'},
+        {'status_code': 500, 'pattern': '.*Unknown.*'},
+      ],
+      'state': 'present'
+    }
+
+    expected_patch_ops = [
+      {'op': 'replace', 'path': '/selectionPattern', 'value': 'totally-invalid-but-whatever'},
+      {'op': 'replace', 'path': '/responseTemplates/application~1json', 'value': 'new-value'},
+      {'op': 'add', 'path': '/responseTemplates/add', 'value': 'me'},
+      {'op': 'delete', 'path': '/responseTemplates/delete'},
+      {'op': 'replace', 'path': '/responseParameters/method.response.header.change', 'value': 'newval'},
+      {'op': 'add', 'path': '/responseParameters/method.response.body.addme', 'value': 'bodyval'},
+      {'op': 'delete', 'path': '/responseParameters/also-delete'},
+    ]
+
+    self.method.process_request()
+
+    self.method.client.update_integration_response.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      statusCode='202',
+      patchOperations=mock.ANY
+    )
+    self.assertItemsEqual(
+      expected_patch_ops,
+      self.method.client.update_integration_response.call_args[1]['patchOperations']
+    )
+    self.method.client.put_integration_response.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      statusCode='500',
+      selectionPattern='.*Unknown.*',
+      responseParameters={},
+      responseTemplates={}
+    )
+    self.method.client.delete_integration_response.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      statusCode='404'
+    )
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_calls_put_integration_response_when_method_is_present_but_missing_integrationResponses(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'methodIntegration': {}
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'integration_responses': [
+        {'status_code': 1234, 'pattern': '.*Bad.*'},
+      ],
+      'state': 'present'
+    }
+
+    self.method.process_request()
+
+    self.assertEqual(0, self.method.client.update_integration_response.call_count)
+    self.assertEqual(0, self.method.client.delete_integration_response.call_count)
+    self.method.client.put_integration_response.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      statusCode='1234',
+      selectionPattern='.*Bad.*',
+      responseParameters={},
+      responseTemplates={}
     )
 
 ### End update
