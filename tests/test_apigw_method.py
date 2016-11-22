@@ -603,6 +603,59 @@ class TestApiGwMethod(unittest.TestCase):
       responseTemplates={}
     )
 
+  @patch.object(ApiGwMethod, '_find_method', side_effect=[None, 'Called post-update'])
+  def test_process_request_calls_get_method_and_returns_result_after_update_when_method_is_up_to_date(self, mock_find):
+    initial_find = {
+      'apiKeyRequired': False,
+      'authorizationType': 'NONE',
+      'httpMethod': 'GET',
+      'requestParameters': {},
+      'methodResponses': {'24601': {'statusCode': '24601'}},
+      'methodIntegration': {
+        'type': 'XXX',
+        'httpMethod': 'POST',
+        'uri': 'this-is-uri',
+        'passthroughBehavior': 'WHEN_NO_TEMPLATES',
+        'requestParameters': {},
+        'requestTemplates': {},
+        'integrationResponses': {'24601': {'statusCode': '24601', 'selectionPattern': 'pattern'}},
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'authorization_type': 'NONE',
+      'api_key_required': False,
+      'request_params': [],
+      'method_integration': {
+        'integration_type': 'XXX',
+        'http_method': 'POST',
+        'uri': 'this-is-uri',
+        'passthrough_behavior': 'when_no_templates',
+      },
+      'method_responses': [{'status_code': 24601}],
+      'integration_responses': [{'status_code': 24601, 'pattern': 'pattern'}],
+      'state': 'present'
+    }
+
+    mock_find.side_effect = [initial_find, 'Called post-update']
+
+    self.method.process_request()
+
+    self.assertEqual(0, self.method.client.update_method.call_count)
+    self.assertEqual(0, self.method.client.put_integration.call_count)
+    self.assertEqual(0, self.method.client.update_integration.call_count)
+    self.assertEqual(0, self.method.client.put_method_response.call_count)
+    self.assertEqual(0, self.method.client.update_method_response.call_count)
+    self.assertEqual(0, self.method.client.delete_method_response.call_count)
+    self.assertEqual(0, self.method.client.put_integration_response.call_count)
+    self.assertEqual(0, self.method.client.update_integration_response.call_count)
+    self.assertEqual(0, self.method.client.delete_integration_response.call_count)
+
+    self.method.module.exit_json.assert_called_once_with(changed=False, method='Called post-update')
+
 ### End update
 
 ### Create tests

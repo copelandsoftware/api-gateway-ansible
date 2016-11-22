@@ -100,7 +100,7 @@ def patch_builder(method, params, param_map):
       ops.append(create_patch('remove', boto_param))
     elif ans_param in params and boto_param not in method:
       ops.append(create_patch('add', boto_param, value=params[ans_param]))
-    elif str(params[ans_param]) != str(method[boto_param]):
+    elif str(params[ans_param]).lower() != str(method[boto_param]).lower():
       ops.append(create_patch('replace', boto_param, value=params[ans_param]))
 
   return ops
@@ -629,45 +629,46 @@ class ApiGwMethod:
     changed = False
 
     try:
-        um_args = update_method(self.method, self.module.params)
-        if um_args:
+      um_args = update_method(self.method, self.module.params)
+      if um_args:
+        changed = True
+        if not self.module.check_mode:
+          self.client.update_method(**um_args)
+
+      if 'methodIntegration' not in self.method:
+        changed = True
+        if not self.module.check_mode:
+          self.client.put_integration(**put_integration(self.module.params))
+      else:
+        ui_args = update_integration(self.method, self.module.params)
+        if ui_args:
           changed = True
           if not self.module.check_mode:
-            self.client.update_method(**um_args)
+            self.client.update_integration(**ui_args)
 
-        if 'methodIntegration' not in self.method:
-          changed = True
-          if not self.module.check_mode:
-            self.client.put_integration(**put_integration(self.module.params))
-        else:
-          ui_args = update_integration(self.method, self.module.params)
-          if ui_args:
-            changed = True
-            if not self.module.check_mode:
-              self.client.update_integration(**ui_args)
+      umr_args = update_method_response(self.method, self.module.params)
+      if umr_args['creates'] or umr_args['deletes'] or umr_args['updates']:
+        changed = True
+        if not self.module.check_mode:
+          for create_kwargs in umr_args['creates']:
+            self.client.put_method_response(**create_kwargs)
+          for patch_kwargs in umr_args['updates']:
+            self.client.update_method_response(**patch_kwargs)
+          for delete_kwargs in umr_args['deletes']:
+            self.client.delete_method_response(**delete_kwargs)
 
-        umr_args = update_method_response(self.method, self.module.params)
-        if umr_args['creates'] or umr_args['deletes'] or umr_args['updates']:
-          changed = True
-          if not self.module.check_mode:
-            for create_kwargs in umr_args['creates']:
-              self.client.put_method_response(**create_kwargs)
-            for patch_kwargs in umr_args['updates']:
-              self.client.update_method_response(**patch_kwargs)
-            for delete_kwargs in umr_args['deletes']:
-              self.client.delete_method_response(**delete_kwargs)
+      uir_args = update_integration_response(self.method, self.module.params)
+      if uir_args['creates'] or uir_args['deletes'] or uir_args['updates']:
+        changed = True
+        if not self.module.check_mode:
+          for create_kwargs in uir_args['creates']:
+            self.client.put_integration_response(**create_kwargs)
+          for patch_kwargs in uir_args['updates']:
+            self.client.update_integration_response(**patch_kwargs)
+          for delete_kwargs in uir_args['deletes']:
+            self.client.delete_integration_response(**delete_kwargs)
 
-        uir_args = update_integration_response(self.method, self.module.params)
-        if uir_args['creates'] or uir_args['deletes'] or uir_args['updates']:
-          changed = True
-          if not self.module.check_mode:
-            for create_kwargs in uir_args['creates']:
-              self.client.put_integration_response(**create_kwargs)
-            for patch_kwargs in uir_args['updates']:
-              self.client.update_integration_response(**patch_kwargs)
-            for delete_kwargs in uir_args['deletes']:
-              self.client.delete_integration_response(**delete_kwargs)
-
+      response = self._find_method()
     except BotoCoreError as e:
       self.module.fail_json(msg="Error while updating method via boto3: {}".format(e))
 
