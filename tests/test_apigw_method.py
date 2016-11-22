@@ -326,6 +326,7 @@ class TestApiGwMethod(unittest.TestCase):
           {'content_type': 'addme', 'template': 'addval'},
           {'content_type': 'change/me', 'template': 'changeval'},
         ],
+        'uses_caching': True,
         'cache_namespace': 'cn',
         'cache_key_parameters': [],
         'integration_params': [
@@ -353,6 +354,42 @@ class TestApiGwMethod(unittest.TestCase):
       patchOperations=mock.ANY
     )
     self.assertItemsEqual(expected_patch_ops, self.method.client.update_integration.call_args[1]['patchOperations'])
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_calls_skips_patching_inherited_cache_values_when_not_using_cache(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'methodIntegration': {
+        'type': 'XXX',
+        'httpMethod': 'POST',
+        'uri': 'magical-uri',
+        'passthroughBehavior': 'when_no_templates',
+        'requestParameters': {},
+        'cacheNamespace': 'stupid inherited cache namespace',
+        'cacheKeyParameters': [],
+        'requestTemplates': {}
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_integration': {
+        'integration_type': 'XXX',
+        'http_method': 'POST',
+        'uri': 'magical-uri',
+        'passthrough_behavior': 'when_no_templates',
+        'request_templates': [],
+        'uses_caching': False,
+        'integration_params': [],
+      },
+      'state': 'present'
+    }
+
+    self.method.process_request()
+
+    self.assertEqual(0, self.method.client.update_integration.call_count)
 
   @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method', return_value={'something': 'here'})

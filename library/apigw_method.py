@@ -194,9 +194,11 @@ def update_integration(method, params):
     'http_method': 'httpMethod',
     'uri': 'uri',
     'passthrough_behavior': 'passthroughBehavior',
-    'cache_namespace': 'cacheNamespace',
-    'cache_key_parameters': 'cacheKeyParameters',
   }
+
+  if mi_params.get('uses_caching', False):
+    param_map['cache_namespace'] = 'cacheNamespace'
+    param_map['cache_key_parameters'] = 'cacheKeyParameters'
 
   ops = patch_builder(method.get('methodIntegration', {}), mi_params, param_map)
   ops.extend(
