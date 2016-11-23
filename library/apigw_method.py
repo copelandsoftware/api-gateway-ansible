@@ -125,7 +125,7 @@ def put_method(params):
     restApiId=params.get('rest_api_id'),
     resourceId=params.get('resource_id'),
     httpMethod=params.get('name'),
-    authorizationType=params.get('authorization_type'),
+    authorizationType=params.get('authorization_type', 'NONE'),
     apiKeyRequired=params.get('api_key_required', False),
     requestParameters=param_transformer(params.get('request_params', []), 'request')
   )
@@ -167,7 +167,7 @@ def put_integration(params):
     restApiId=params.get('rest_api_id'),
     resourceId=params.get('resource_id'),
     httpMethod=params.get('name'),
-    type=params['method_integration'].get('integration_type'),
+    type=params['method_integration'].get('integration_type', 'AWS'),
     requestParameters=param_transformer(params['method_integration'].get('integration_params', []), 'request'),
     requestTemplates=add_templates(params['method_integration'].get('request_templates', []))
   )
@@ -258,7 +258,7 @@ def update_method_response(method, params):
   for p in params.get('method_responses', []):
     mr_dict[str(p['status_code'])] = {}
     for model in p.get('response_models', []):
-      mr_dict[str(p['status_code'])][model['content_type']] = model['model']
+      mr_dict[str(p['status_code'])][model['content_type']] = model.get('model', 'Empty')
 
   mr_aws = method.get('methodResponses', {})
 
@@ -690,9 +690,9 @@ class ApiGwMethod:
     if self.method is not None and self.module.params.get('state') == 'absent':
       self._delete_method()
       changed = True
-    elif self.module.params.get('state') == 'present' and self.method is None:
+    elif self.module.params.get('state', 'present') == 'present' and self.method is None:
       (changed, response) = self._create_method()
-    elif self.module.params.get('state') == 'present':
+    elif self.module.params.get('state', 'present') == 'present':
       (changed, response) = self._update_method()
 
     self.module.exit_json(changed=changed, method=response)
