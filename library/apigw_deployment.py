@@ -61,11 +61,44 @@ notes:
 '''
 
 EXAMPLES = '''
-TBD
+- name: Test playbook for creating API GW Method resource
+  hosts: localhost
+  gather_facts: False
+  tasks:
+    - name: deploy it
+      apigw_deployment:
+        rest_api_id: 'someIdHere
+        name: 'dev'
+        description: 'This is a test of the emergency deployment system'
+        cache_cluster_enabled: True
+        cache_cluster_size: 0.5
+      register: deploy
+
+    - debug: var=deploy
 '''
 
 RETURN = '''
-TBD
+{
+  "deploy": {
+    "changed": true,
+    "deployment": {
+      "ResponseMetadata": {
+        "HTTPHeaders": {
+          "content-length": "107",
+          "content-type": "application/json",
+          "date": "Mon, 28 Nov 2016 15:02:40 GMT",
+          "x-amzn-requestid": "some id"
+        },
+        "HTTPStatusCode": 201,
+        "RequestId": "some id",
+        "RetryAttempts": 0
+      },
+      "createdDate": "2016-11-28T09:02:39-06:00",
+      "description": "This is a test of the emergency deployment system",
+      "id": "rv7xsx"
+    }
+  }
+}
 '''
 
 __version__ = '${version}'
