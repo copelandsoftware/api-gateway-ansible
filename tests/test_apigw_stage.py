@@ -9,7 +9,7 @@ from mock import create_autospec
 from mock import ANY
 import unittest
 import boto
-from botocore.exceptions import BotoCoreError
+from botocore.exceptions import BotoCoreError, ClientError
 
 class TestApiGwStage(unittest.TestCase):
 
@@ -112,6 +112,19 @@ class TestApiGwStage(unittest.TestCase):
         msg='Error while deleting stage via boto3: An unspecified error occurred'
     )
 
+  @patch.object(ApiGwStage, '_find_stage', return_value=None)
+  def test_process_request_skips_delete_and_calls_exit_json_when_stage_does_not_exist(self, mock_find):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme',
+      'state': 'absent'
+    }
+
+    self.stage.process_request()
+
+    self.assertEqual(0, self.stage.client.delete_stage.call_count)
+    self.stage.module.exit_json.assert_called_once_with(changed=False, stage=None)
+
   def test_process_request_skips_delete_and_calls_exit_json_when_check_mode_is_set(self):
     self.stage.module.params = {
       'rest_api_id': 'bob',
@@ -126,6 +139,63 @@ class TestApiGwStage(unittest.TestCase):
     self.assertEqual(0, self.stage.client.delete_stage.call_count)
     self.stage.module.exit_json.assert_called_once_with(changed=False, stage=None)
 
+  def test_process_request_calls_get_stage_when_called(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme'
+    }
+
+    self.stage.client.get_stage = mock.MagicMock(return_value='Schadenfreude')
+
+    self.stage.process_request()
+
+    self.stage.client.get_stage.assert_called_once_with(restApiId='bob', stageName='testme')
+    self.assertEqual('Schadenfreude', self.stage.stage)
+
+  def test_process_request_sets_find_result_to_None_when_get_stage_returns_404(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme'
+    }
+
+    self.stage.client.get_stage = mock.MagicMock(
+        side_effect=ClientError({'Error': {'Code': 'x NotFoundException x'}}, 'xxx'))
+
+    self.stage.process_request()
+
+    self.stage.client.get_stage.assert_called_once_with(restApiId='bob', stageName='testme')
+    self.assertEqual(None, self.stage.stage)
+
+  def test_process_request_calls_fail_json_when_get_stage_returns_non_404_ClientError(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme'
+    }
+
+    self.stage.client.get_stage = mock.MagicMock(
+        side_effect=ClientError({'Error': {'Code': 'x SomeOtherError x'}}, 'xxx'))
+
+    self.stage.process_request()
+
+    self.stage.client.get_stage.assert_called_once_with(restApiId='bob', stageName='testme')
+    self.stage.module.fail_json.assert_called_once_with(
+        msg='Error while finding stage via boto3: An error occurred (x SomeOtherError x) when calling the xxx operation: Unknown'
+    )
+
+  def test_process_request_calls_fail_json_when_get_stage_raises_exception(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme'
+    }
+
+    self.stage.client.get_stage = mock.MagicMock(side_effect=BotoCoreError())
+
+    self.stage.process_request()
+
+    self.stage.client.get_stage.assert_called_once_with(restApiId='bob', stageName='testme')
+    self.stage.module.fail_json.assert_called_once_with(
+        msg='Error while finding stage via boto3: An unspecified error occurred'
+    )
 
   @patch.object(apigw_stage, 'AnsibleModule')
   @patch.object(apigw_stage, 'ApiGwStage')
@@ -139,6 +209,7 @@ class TestApiGwStage(unittest.TestCase):
 
     mock_ApiGwStage.assert_called_once_with(mock_AnsibleModule_instance)
     self.assertEqual(1, mock_ApiGwStage_instance.process_request.call_count)
+
 
 
 if __name__ == '__main__':

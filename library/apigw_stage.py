@@ -98,7 +98,7 @@ import copy
 try:
   import boto3
   import boto
-  from botocore.exceptions import BotoCoreError
+  from botocore.exceptions import BotoCoreError, ClientError
   HAS_BOTO3 = True
 except ImportError:
   HAS_BOTO3 = False
@@ -132,6 +132,26 @@ class ApiGwStage:
                  state=dict(required=False, default='present', choices=['absent', 'present'])
     )
 
+  def _find_stage(self):
+    """
+    Attempts to find the stage
+    :return: Returns boolean indicating whether api has been called.  Calls fail_json
+             on error
+    """
+    try:
+      return self.client.get_stage(
+          restApiId=self.module.params.get('rest_api_id'),
+          stageName=self.module.params.get('name')
+      )
+    except ClientError as e:
+      if 'NotFoundException' in e.message:
+        return None
+      else:
+        self.module.fail_json(msg='Error while finding stage via boto3: {}'.format(e))
+    except BotoCoreError as e:
+      self.module.fail_json(msg='Error while finding stage via boto3: {}'.format(e))
+
+
   def _delete_stage(self):
     """
     Delete the stage
@@ -160,7 +180,10 @@ class ApiGwStage:
     changed = False
     result = None
 
-    changed = self._delete_stage()
+    self.stage = self._find_stage()
+
+    if self.stage is not None:
+      changed = self._delete_stage()
 
     self.module.exit_json(changed=changed, stage=result)
 
