@@ -108,9 +108,28 @@ class ApiGwDeployment:
     Process the user's request -- the primary code path
     :return: Returns either fail_json or exit_json
     """
-    changed = False
     result = None
-    raise NotImplementedError
+
+    p = self.module.params
+
+    kwargs = {
+      'restApiId': p.get('rest_api_id'),
+      'stageName': p.get('name'),
+      'stageDescription': p.get('stage_description', ''),
+      'description': p.get('description', ''),
+      'cacheClusterEnabled': p.get('cache_cluster_enabled', False)
+    }
+
+    if p.get('cache_cluster_enabled', False):
+      kwargs['cacheClusterSize'] = str(p.get('cache_cluster_size', ''))
+
+    if not self.module.check_mode:
+      try:
+        result = self.client.create_deployment(**kwargs)
+      except BotoCoreError as e:
+        self.module.fail_json(msg="Error while creating deployment via boto3: {}".format(e))
+
+    self.module.exit_json(changed=True, deployment=result)
 
 def main():
     """
