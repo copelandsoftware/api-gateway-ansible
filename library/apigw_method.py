@@ -139,9 +139,11 @@ def update_method(method, params):
 
   param_map = {
     'authorization_type': 'authorizationType',
-    'authorizer_id': 'authorizerId',
     'api_key_required': 'apiKeyRequired',
   }
+
+  if params.get('authorization_type', 'NONE') != 'NONE':
+    param_map['authorizer_id'] = 'authorizerId'
 
   ops = patch_builder(method, params, param_map)
   ops.extend(

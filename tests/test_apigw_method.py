@@ -218,7 +218,6 @@ class TestApiGwMethod(unittest.TestCase):
       'resource_id': 'rsrcid',
       'name': 'GET',
       'api_key_required': True,
-      'authorizer_id': 'authid',
       'request_params': [
         {'name': 'bob', 'location': 'path', 'param_required': True},
         {'name': 'frank', 'location': 'header', 'param_required': False},
@@ -229,7 +228,6 @@ class TestApiGwMethod(unittest.TestCase):
     expected_patch_ops = [
       {'op': 'replace', 'path': '/apiKeyRequired', 'value': 'True'},
       {'op': 'remove', 'path': '/authorizationType'},
-      {'op': 'add', 'path': '/authorizerId', 'value': 'authid'},
       {'op': 'add', 'path': '/requestParameters/method.request.path.bob', 'value': 'True'},
       {'op': 'remove', 'path': '/requestParameters/method.request.querystring.qs_test'},
       {'op': 'replace', 'path': '/requestParameters/method.request.header.frank', 'value': 'False'},
