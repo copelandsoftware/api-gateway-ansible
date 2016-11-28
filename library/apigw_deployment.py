@@ -112,11 +112,13 @@ class ApiGwDeployment:
 
     p = self.module.params
 
+    # So ansible seems to do something weird wherein it converts a default
+    # of '' to None, which boto won't accept, hence the "or ''"
     kwargs = {
       'restApiId': p.get('rest_api_id'),
       'stageName': p.get('name'),
-      'stageDescription': p.get('stage_description', ''),
-      'description': p.get('description', ''),
+      'stageDescription': p.get('stage_description', '') or '',
+      'description': p.get('description', '') or '',
       'cacheClusterEnabled': p.get('cache_cluster_enabled', False)
     }
 
