@@ -16,31 +16,219 @@
 DOCUMENTATION='''
 module: apigw_method
 description:
-  - An Ansible module to add, update, or remove AWS API Gateway
-    method resources
+  - An Ansible module to add, update, or remove AWS API Gateway method resources
 version_added: "2.2"
 options:
   name:
-    description:
-      - The name of the method on which to operate
-    choices: ['get', 'put', 'post', 'delete', 'patch', 'head']
+    description: The name of the method on which to operate
+    type: 'string'
+    choices: ['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'HEAD']
     required: True
   rest_api_id:
-    description:
-      - The id of the parent rest api
+    description: The id of the parent rest api
+    type: 'string'
     required: True
   resource_id:
-    description:
-      - The id of the resource to which the method belongs
+    description: The id of the resource to which the method belongs
+    type: 'string'
     required: True
+  authorization_type:
+    description: The type of authorization used for the method
+    type: 'string'
+    default: 'NONE'
+    required: False
+  authorizer_id:
+    description: The id of an Authorizer to use on this method (required when C(authorization_type) is 'CUSTOM').
+    type: 'string'
+    default: None
+    required: False
+  api_key_required:
+    description: Specifies if an api key is required
+    type: 'bool'
+    default: False
+    required: False
+  request_params:
+    description: List of dictionaries specifying method request parameters that can be accepted by this method
+    type: 'list'
+    default: []
+    required: False
+    options:
+      name:
+        description: The name of the request parameter
+        type: 'string'
+        required: True
+      location:
+        description: Identifies where in the request to find the parameter
+        type: 'string'
+        choices: ['querystring', 'path', 'header']
+        required: True
+      param_required:
+        description: Specifies if the field is required or optional
+        type: 'bool'
+        required: True
+  method_integration:
+    description: Dictionary of parameters that specify how and to which resource API Gateway should map requests. This is required when C(state) is 'present'.
+    type: 'dict'
+    default: {}
+    required: False
+    options:
+      integration_type:
+        description: The type of method integration
+        type: 'string'
+        default: 'AWS'
+        choices: ['AWS', 'MOCK', 'HTTP', 'HTTP_PROXY', 'AWS_PROXY']
+        required: False
+      http_method:
+        description: Method used by the integration.  This is required when C(integration_type) is 'HTTP' or 'AWS'.
+        type: 'string'
+        default: 'POST'
+        choices: ['POST', 'GET', 'PUT']
+        required: False
+      uri:
+        description: The URI of the integration input.  This field is required when C(integration_type) is 'HTTP' or 'AWS'.
+        type: 'string'
+        default: None
+        required: False
+      passthrough_behavior:
+        description: Specifies the pass-through behaving for incoming requests based on the Content-Type header in the request and the available mapping templates specified in C(request_templates).
+        type: 'string'
+        default: 'when_no_templates'
+        choices: ['when_no_templates', 'when_no_match', 'never']
+        required: False
+      request_templates:
+        description: List of dictionaries that represent Velocity templates that are applied to the request payload.
+        type: 'list'
+        default: []
+        required: False
+        options:
+          content_type:
+            description: The type of the content for this template (e.g. application/json)
+            type: 'string'
+            required: True
+          template:
+            description: The template to apply
+            type: 'string'
+            required: True
+      uses_caching:
+        description: Flag that indicates if this method uses caching.  Specifying false ensures that caching is disabled for the method if it is otherwise enabled .
+        type: 'bool'
+        default: False
+        required: False
+      cache_namespace:
+        description: Specifies input cache namespace
+        type: 'string'
+        default: ''
+        required: False
+      cache_key_parameters:
+        description: Specifies input cache key parameters
+        type: 'list'
+        default: []
+        required: False
+      integration_params:
+        description: List of dictionaries that represent parameters passed from the method request to the back end.
+        type: 'list'
+        default: []
+        required: False
+        options:
+          name:
+            description: A unique name for this request parameter
+            type: 'string'
+            required: True
+          location:
+            description: Where in the request to find the parameter
+            type: 'string'
+            choices: ['querystring', 'path', 'header']
+            required: True
+          value:
+            description: The value to assign to the parameter
+            type: 'string'
+            required: True
+  method_responses:
+    description: List of dictionaries specifying mapping of response parameters to be passed back to the caller.  This section is required when C(state) is 'present'.
+    type: 'list'
+    default: []
+    required: False
+    options:
+      status_code:
+        description: The status code used to map the method response
+        type: 'string'
+        default: None
+        required: False
+      response_models:
+        description: List of dictionaries that specify Model resources used for the response's content type.
+        type: 'list'
+        default: []
+        required: False
+        options:
+          content_type:
+            description: The type of the content for this model (e.g. application/json)
+            type: 'string'
+            required: True
+          model:
+            description: Type of the model
+            type: 'string'
+            default: 'Empty'
+            choices: ['Empty', 'Error']
+            required: False
+  integration_responses:
+    description: List of dictionaries the map backend responses to the outbound response.  This section is required when C(state) is 'present'.
+    type: 'list'
+    default: []
+    required: False
+    options:
+      status_code:
+        description: The status code used to map the integration response
+        type: 'string'
+        required: True
+      is_default:
+        description: Flag to specify if this is the default response code
+        type: 'bool'
+        default: False
+        required: False
+      pattern:
+        description: Selection pattern of the integration response.  This field is required when C(is_default) is False.  This field must be omitted when C(is_default) is True.
+        type: 'string'
+        default: None
+        required: False
+      response_params:
+        description: List of dictionaries mapping fields in the response to integration response header values, static values, or a JSON expression from the ingration response body.
+        type: 'list'
+        default: []
+        required: False
+        options:
+          name:
+            description: A unique name for this response parameter
+            type: 'string'
+            required: True
+          location:
+            description: Where in the response to find the parameter
+            type: 'string'
+            choices: ['body', 'header']
+            required: True
+          value:
+            description: The value to assign to the parameter
+            type: 'string'
+            required: True
+      response_templates:
+        description: Response templates for the integration response
+        type: 'list'
+        default: []
+        required: False
+        options:
+          content_type:
+            description: The type of the content for this template (e.g. application/json)
+            type: 'string'
+            required: True
+          template:
+            description: The template to apply
+            type: 'string'
+            required: True
   state:
-    description:
-      - Determine whether to assert if resource should exist or not
+    description: Determine whether to assert if resource should exist or not
+    type: 'string'
     choices: ['present', 'absent']
     default: 'present'
     required: False
-
-TODO: FINISH THIS
 
 requirements:
     - python = 2.7
@@ -53,11 +241,146 @@ notes:
 '''
 
 EXAMPLES = '''
-TODO: FINISH THIS
+- name: Test playbook for creating API GW Method resource
+  hosts: localhost
+  gather_facts: False
+  tasks:
+    - name: Create an api
+      apigw_rest_api:
+        name: 'my.example.com'
+        state: present
+      register: restapi
+
+    - name: Create a resource
+      apigw_resource:
+        name: '/test'
+        rest_api_id: "{{ restapi.api.id }}"
+        state: present
+      register: resource
+
+    - name: Create a method
+      apigw_method:
+        rest_api_id: "{{ restapi.api.id }}"
+        resource_id: "{{ resource.resource.id }}"
+        name: GET
+        api_key_required: False
+        method_integration:
+          integration_type: AWS
+          http_method: POST
+          uri: "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:1234567890:function:my_test_lambda/invocations"
+          passthrough_behavior: when_no_templates
+          request_templates:
+            - content_type: application/json
+              template: '{"field": "value", "action": "GET"}'
+        method_responses:
+          - status_code: 200
+            response_models:
+              - content_type: application/json
+          - status_code: 404
+          - status_code: 500
+        integration_responses:
+          - status_code: 200
+            is_default: True
+          - status_code: 404
+            pattern: ".*Not Found.*"
+            response_templates:
+              - content_type: application/json
+                template: '{"output_value": "not found"}'
+          - status_code: 500
+            pattern: ".*(Unknown|stackTrace).*"
+        state: present
+      register: method
+
+    - debug: var=method
+
+- name: Remove method
+  hosts: localhost
+  gather_facts: False
+  tasks:
+    - name: Death
+      apigw_method:
+        rest_api_id: abcd1234
+        resource_id: wxyz9876
+        name: GET
+        state: absent
+      register: method
+
+    - debug: var=method
+
 '''
 
 RETURN = '''
-TODO: FINISH THIS
+Response after create
+
+{
+    "method": {
+        "changed": true,
+        "method": {
+            "ResponseMetadata": {
+                "HTTPHeaders": {
+                    "content-length": "1044",
+                    "content-type": "application/json",
+                    "date": "Wed, 23 Nov 2016 04:11:31 GMT",
+                    "x-amzn-requestid": "ea41a39d-b132-11e6-a412-1d426252ad50"
+                },
+                "HTTPStatusCode": 200,
+                "RequestId": "some_id_here",
+                "RetryAttempts": 0
+            },
+            "apiKeyRequired": false,
+            "authorizationType": "NONE",
+            "httpMethod": "GET",
+            "methodIntegration": {
+                "cacheKeyParameters": [],
+                "cacheNamespace": "abcdefg",
+                "httpMethod": "POST",
+                "integrationResponses": {
+                    "200": {
+                        "responseParameters": {},
+                        "responseTemplates": {},
+                        "selectionPattern": "",
+                        "statusCode": "200"
+                    },
+                    "404": {
+                        "responseParameters": {},
+                        "responseTemplates": {
+                            "application/json": "{\"output_value\": \"hurray\"}"
+                        },
+                        "selectionPattern": ".*Not Found.*",
+                        "statusCode": "404"
+                    },
+                    "500": {
+                        "selectionPattern": ".*(Unknown|stackTrace).*",
+                        "statusCode": "500"
+                    }
+                },
+                "passthroughBehavior": "WHEN_NO_TEMPLATES",
+                "requestTemplates": {
+                    "application/json": "{\"field\": \"value\", \"action\": \"GET\"}"
+                },
+                "type": "AWS",
+                "uri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:1234567890:function:test_lambda/invocations"
+            },
+            "methodResponses": {
+                "200": {
+                    "responseModels": {
+                        "application/json": "Empty"
+                    },
+                    "statusCode": "200"
+                },
+                "404": {
+                    "responseModels": {},
+                    "statusCode": "404"
+                },
+                "500": {
+                    "responseModels": {},
+                    "statusCode": "500"
+                }
+            }
+        }
+    }
+}
+
 '''
 
 __version__ = '${version}'
