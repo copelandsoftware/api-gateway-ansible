@@ -132,6 +132,26 @@ class ApiGwStage:
                  state=dict(required=False, default='present', choices=['absent', 'present'])
     )
 
+  def _delete_stage(self):
+    """
+    Delete the stage
+    :return: Returns boolean indicating whether api has been called.  Calls fail_json
+             on error
+    """
+    changed = False
+
+    if not self.module.check_mode:
+      try:
+        changed = True
+        self.client.delete_stage(
+          restApiId=self.module.params.get('rest_api_id'),
+          stageName=self.module.params.get('name')
+        )
+      except BotoCoreError as e:
+        self.module.fail_json(msg="Error while deleting stage via boto3: {}".format(e))
+
+    return changed
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -140,7 +160,9 @@ class ApiGwStage:
     changed = False
     result = None
 
-    raise NotImplementedError
+    changed = self._delete_stage()
+
+    self.module.exit_json(changed=changed, stage=result)
 
 def main():
     """

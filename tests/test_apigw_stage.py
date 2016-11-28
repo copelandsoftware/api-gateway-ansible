@@ -74,6 +74,58 @@ class TestApiGwStage(unittest.TestCase):
                      state=dict(required=False, default='present', choices=['absent', 'present'])
     ))
 
+  def test_process_request_calls_exit_json_when_delete_succeeds(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme',
+      'state': 'absent'
+    }
+
+    self.stage.process_request()
+
+    self.stage.module.exit_json.assert_called_once_with(changed=True, stage=None)
+
+  def test_process_request_calls_delete_stage_when_state_is_absent(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme',
+      'state': 'absent'
+    }
+
+    self.stage.process_request()
+
+    self.stage.client.delete_stage.assert_called_once_with(restApiId='bob', stageName='testme')
+
+  def test_process_request_calls_fail_json_when_delete_fails(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme',
+      'state': 'absent'
+    }
+
+    self.stage.client.delete_stage = mock.MagicMock(side_effect=BotoCoreError())
+
+    self.stage.process_request()
+
+    self.stage.client.delete_stage.assert_called_once_with(restApiId='bob', stageName='testme')
+    self.stage.module.fail_json.assert_called_once_with(
+        msg='Error while deleting stage via boto3: An unspecified error occurred'
+    )
+
+  def test_process_request_skips_delete_and_calls_exit_json_when_check_mode_is_set(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme',
+      'state': 'absent'
+    }
+
+    self.stage.module.check_mode = True
+
+    self.stage.process_request()
+
+    self.assertEqual(0, self.stage.client.delete_stage.call_count)
+    self.stage.module.exit_json.assert_called_once_with(changed=False, stage=None)
+
 
   @patch.object(apigw_stage, 'AnsibleModule')
   @patch.object(apigw_stage, 'ApiGwStage')
