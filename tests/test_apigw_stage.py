@@ -294,6 +294,28 @@ class TestApiGwStage(unittest.TestCase):
         msg='Error while updating stage via boto3: An unspecified error occurred'
     )
 
+  def test_process_request_calls_get_stage_after_successful_update(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme',
+      'cache_cluster_size': 'something else',
+    }
+
+    mock_result = {
+      'cacheClusterSize': 'something',
+    }
+
+    self.stage.client.get_stage = mock.MagicMock(side_effect=[mock_result, 'Hurray! It worked!'])
+
+    self.stage.process_request()
+
+    self.stage.client.update_stage.assert_called_once_with(
+        restApiId='bob', stageName='testme',
+        patchOperations=[{'op': 'replace', 'path': '/cacheClusterSize', 'value': 'something else'}])
+    self.stage.client.get_stage.assert_called_with(restApiId='bob', stageName='testme')
+    self.stage.module.exit_json.assert_called_once_with(changed=True, stage='Hurray! It worked!')
+    self.assertEqual(2, self.stage.client.get_stage.call_count)
+
 
   @patch.object(apigw_stage, 'AnsibleModule')
   @patch.object(apigw_stage, 'ApiGwStage')

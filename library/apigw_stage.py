@@ -231,6 +231,10 @@ class ApiGwStage:
         changed = True
         if not self.module.check_mode:
           self.client.update_stage(**patch_args)
+          result = self.client.get_stage(
+            restApiId=self.module.params.get('rest_api_id'),
+            stageName=self.module.params.get('name')
+          )
     except BotoCoreError as e:
       self.module.fail_json(msg="Error while updating stage via boto3: {}".format(e))
 
