@@ -145,12 +145,12 @@ class TestApiGwStage(unittest.TestCase):
       'name': 'testme'
     }
 
-    self.stage.client.get_stage = mock.MagicMock(return_value='Schadenfreude')
+    self.stage.client.get_stage = mock.MagicMock(return_value={'Schaden': 'freude'})
 
     self.stage.process_request()
 
     self.stage.client.get_stage.assert_called_once_with(restApiId='bob', stageName='testme')
-    self.assertEqual('Schadenfreude', self.stage.stage)
+    self.assertEqual({'Schaden': 'freude'}, self.stage.stage)
 
   def test_process_request_sets_find_result_to_None_when_get_stage_returns_404(self):
     self.stage.module.params = {
@@ -196,6 +196,104 @@ class TestApiGwStage(unittest.TestCase):
     self.stage.module.fail_json.assert_called_once_with(
         msg='Error while finding stage via boto3: An unspecified error occurred'
     )
+
+  def test_process_request_calls_update_stage_when_changes_are_needed(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme',
+      'description': 'new description',
+      'cache_cluster_enabled': True,
+      'cache_cluster_size': 1.6,
+      'method_settings': [
+        {'method_name': '/test', 'method_verb': 'GET', 'cache_enabled': False},
+        {'method_name': '/test', 'method_verb': 'PUT', 'cache_enabled': False},
+      ]
+    }
+
+    mock_result = {
+      'cacheClusterEnabled': True,
+      'cacheClusterSize': '0.5',
+      'methodSettings': {
+        '/~1test/GET': {'cachingEnabled': True},
+        '/~1test/PUT': {'cachingEnabled': False},
+      }
+    }
+
+    self.stage.client.get_stage = mock.MagicMock(return_value=mock_result)
+
+    expected_patch_ops = [
+      {'op': 'replace', 'path': '/~1test/GET/cache/enabled', 'value': 'False'},
+      {'op': 'replace', 'path': '/description', 'value': 'new description'},
+      {'op': 'replace', 'path': '/cacheClusterSize', 'value': '1.6'},
+    ]
+
+    self.stage.process_request()
+
+    self.stage.client.update_stage.assert_called_once_with(restApiId='bob', stageName='testme', patchOperations=mock.ANY)
+    self.assertEqual(len(expected_patch_ops), len(self.stage.client.update_stage.call_args[1]['patchOperations']))
+    self.assertItemsEqual(expected_patch_ops, self.stage.client.update_stage.call_args[1]['patchOperations'])
+
+  def test_process_request_skips_update_method_call_when_no_differences_found(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme',
+      'cache_cluster_size': 'something',
+    }
+
+    mock_result = {
+      'cacheClusterSize': 'something',
+    }
+
+    self.stage.client.get_stage = mock.MagicMock(return_value=mock_result)
+
+    self.stage.process_request()
+
+    self.assertEqual(0, self.stage.client.update_stage.call_count)
+    self.stage.module.exit_json.assert_called_once_with(changed=False, stage=None)
+
+  def test_process_request_skips_update_method_call_when_check_mode_set(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme',
+      'cache_cluster_size': 'something else',
+    }
+
+    mock_result = {
+      'cacheClusterSize': 'something',
+    }
+
+    self.stage.module.check_mode = True
+
+    self.stage.client.get_stage = mock.MagicMock(return_value=mock_result)
+
+    self.stage.process_request()
+
+    self.assertEqual(0, self.stage.client.update_stage.call_count)
+    self.stage.module.exit_json.assert_called_once_with(changed=True, stage=None)
+
+  def test_process_request_calls_fail_json_when_update_stage_raises_exception(self):
+    self.stage.module.params = {
+      'rest_api_id': 'bob',
+      'name': 'testme',
+      'cache_cluster_size': 'something else',
+    }
+
+    mock_result = {
+      'cacheClusterSize': 'something',
+    }
+
+    self.stage.client.get_stage = mock.MagicMock(return_value=mock_result)
+    self.stage.client.update_stage = mock.MagicMock(side_effect=BotoCoreError)
+
+    self.stage.process_request()
+
+    self.stage.client.update_stage.assert_called_once_with(
+        restApiId='bob', stageName='testme',
+        patchOperations=[{'op': 'replace', 'path': '/cacheClusterSize', 'value': 'something else'}])
+    self.stage.module.fail_json.assert_called_once_with(
+        msg='Error while updating stage via boto3: An unspecified error occurred'
+    )
+
 
   @patch.object(apigw_stage, 'AnsibleModule')
   @patch.object(apigw_stage, 'ApiGwStage')

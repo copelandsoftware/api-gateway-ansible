@@ -9,6 +9,7 @@
 #
 # apigw_stage
 #    Update or remove API Gateway Stage resources
+#    Only processes 'replace' patches.
 #
 
 ## TODO: Add an appropriate license statement
@@ -103,6 +104,47 @@ try:
 except ImportError:
   HAS_BOTO3 = False
 
+def create_patch(path, value):
+  return {'op': 'replace', 'path': path, 'value': str(value)}
+
+def build_patch_args(stage, params):
+  args = None
+
+  arg_map = {
+    'description': {'boto_field': 'description', 'default': ''},
+    'cache_cluster_enabled': {'boto_field': 'cacheClusterEnabled', 'default': False},
+    'cache_cluster_size': {'boto_field': 'cacheClusterSize', 'default': ''},
+  }
+
+  stage = {} if stage is None else stage
+  stg_methods = stage.get('methodSettings', {})
+
+  patches = []
+  for ans_param, blob in arg_map.iteritems():
+    if ans_param in params:
+      if blob['boto_field'] in stage and str(params[ans_param]) == str(stage[blob['boto_field']]):
+        pass
+      else:
+        patches.append(create_patch("/{}".format(blob['boto_field']), params[ans_param]))
+    else:
+      if blob['boto_field'] in stage and str(stage[blob['boto_field']]) != str(blob['default']):
+        patches.append(create_patch("/{}".format(blob['boto_field']), blob['default']))
+
+  for m in params.get('method_settings', []):
+    method_key = "/{0}/{1}".format(re.sub('/', '~1', m['method_name']), m['method_verb'])
+
+    if method_key not in stg_methods or str(stg_methods[method_key]['cachingEnabled']) != str(m.get('caching_enabled', False)):
+      patches.append(create_patch("{}/cache/enabled".format(method_key), m.get('caching_enabled', False)))
+
+  if patches:
+    args = {
+      'restApiId': params['rest_api_id'],
+      'stageName': params['name'],
+      'patchOperations': patches
+    }
+
+  return args
+
 class ApiGwStage:
   def __init__(self, module):
     """
@@ -172,6 +214,28 @@ class ApiGwStage:
 
     return changed
 
+  def _update_stage(self):
+    """
+    Update the stage
+    :return:
+      changed - boolean indicating whether a change has occurred
+      result  - results of a find after a change has occurred
+    """
+    changed = False
+    result = None
+
+    patch_args = build_patch_args(self.stage, self.module.params)
+
+    try:
+      if patch_args is not None:
+        changed = True
+        if not self.module.check_mode:
+          self.client.update_stage(**patch_args)
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error while updating stage via boto3: {}".format(e))
+
+    return (changed, result)
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -182,8 +246,10 @@ class ApiGwStage:
 
     self.stage = self._find_stage()
 
-    if self.stage is not None:
+    if self.stage is not None and self.module.params.get('state', 'present') == 'absent':
       changed = self._delete_stage()
+    elif self.module.params.get('state', 'present') == 'present':
+      changed, result = self._update_stage()
 
     self.module.exit_json(changed=changed, stage=result)
 
