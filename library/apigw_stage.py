@@ -105,36 +105,40 @@ except ImportError:
   HAS_BOTO3 = False
 
 def create_patch(path, value):
-  return {'op': 'replace', 'path': path, 'value': str(value)}
+  return {'op': 'replace', 'path': "/{}".format(path), 'value': str(value)}
 
 def build_patch_args(stage, params):
   args = None
 
   arg_map = {
-    'description': {'boto_field': 'description', 'default': ''},
-    'cache_cluster_enabled': {'boto_field': 'cacheClusterEnabled', 'default': False},
-    'cache_cluster_size': {'boto_field': 'cacheClusterSize', 'default': ''},
+    'description': 'description',
+    'cache_cluster_enabled': 'cacheClusterEnabled',
+    'cache_cluster_size': 'cacheClusterSize',
   }
 
   stage = {} if stage is None else stage
   stg_methods = stage.get('methodSettings', {})
 
   patches = []
-  for ans_param, blob in arg_map.iteritems():
-    if ans_param in params:
-      if blob['boto_field'] in stage and str(params[ans_param]) == str(stage[blob['boto_field']]):
+  for ans_param, boto_param in arg_map.iteritems():
+    if ans_param in params and params[ans_param] is not None:
+      if boto_param in stage and str(params[ans_param]) == str(stage[boto_param]):
         pass
       else:
-        patches.append(create_patch("/{}".format(blob['boto_field']), params[ans_param]))
+        patches.append(create_patch(boto_param, params[ans_param]))
     else:
-      if blob['boto_field'] in stage and str(stage[blob['boto_field']]) != str(blob['default']):
-        patches.append(create_patch("/{}".format(blob['boto_field']), blob['default']))
+      # To avoid unnecessary changes and complexity, I am punting on attempting
+      # to resolve discrepancies between existing Stage values and parameters
+      # that the user has not provided.  This may create an edge case somewhere,
+      # but it seems overall safer than potentially hosing up cache settings
+      # for the entire Stage.
+      pass
 
   for m in params.get('method_settings', []):
-    method_key = "/{0}/{1}".format(re.sub('/', '~1', m['method_name']), m['method_verb'])
+    method_key = "{0}/{1}".format(re.sub('/', '~1', m['method_name']), m['method_verb'])
 
     if method_key not in stg_methods or str(stg_methods[method_key]['cachingEnabled']) != str(m.get('caching_enabled', False)):
-      patches.append(create_patch("{}/cache/enabled".format(method_key), m.get('caching_enabled', False)))
+      patches.append(create_patch("{}/caching/enabled".format(method_key), m.get('caching_enabled', False)))
 
   if patches:
     args = {
