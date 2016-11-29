@@ -64,7 +64,7 @@ class TestApiGwStage(unittest.TestCase):
                      name=dict(required=True, aliases=['stage_name']),
                      rest_api_id=dict(required=True),
                      description=dict(required=False),
-                     cache_cluster_enabled=dict(required=False, type='bool', default=False),
+                     cache_cluster_enabled=dict(required=False, type='bool'),
                      cache_cluster_size=dict(required=False, choices=['0.5','1.6','6.1','13.5','28.4','58.2','118','237']),
                      method_settings=dict(
                        required=False,
@@ -208,8 +208,8 @@ class TestApiGwStage(unittest.TestCase):
       'cache_cluster_enabled': True,
       'cache_cluster_size': 1.6,
       'method_settings': [
-        {'method_name': '/test', 'method_verb': 'GET', 'cache_enabled': False},
-        {'method_name': '/test', 'method_verb': 'PUT', 'cache_enabled': False},
+        {'method_name': '/test', 'method_verb': 'GET', 'caching_enabled': True},
+        {'method_name': '/test', 'method_verb': 'PUT', 'caching_enabled': True},
       ]
     }
 
@@ -217,15 +217,15 @@ class TestApiGwStage(unittest.TestCase):
       'cacheClusterEnabled': True,
       'cacheClusterSize': '0.5',
       'methodSettings': {
-        '/~1test/GET': {'cachingEnabled': True},
-        '/~1test/PUT': {'cachingEnabled': False},
+        '~1test/GET': {'cachingEnabled': True},
+        '~1test/PUT': {'cachingEnabled': False},
       }
     }
 
     self.stage.client.get_stage = mock.MagicMock(return_value=mock_result)
 
     expected_patch_ops = [
-      {'op': 'replace', 'path': '/~1test/GET/cache/enabled', 'value': 'False'},
+      {'op': 'replace', 'path': '/~1test/PUT/caching/enabled', 'value': 'True'},
       {'op': 'replace', 'path': '/description', 'value': 'new description'},
       {'op': 'replace', 'path': '/cacheClusterSize', 'value': '1.6'},
     ]

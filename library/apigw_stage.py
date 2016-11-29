@@ -31,12 +31,12 @@ options:
   description:
     description: The description for the Stage resource to create
     type: 'string'
-    default: ''
+    default: None
     required: False
   cache_cluster_enabled:
     description: Cache cluster setting for the Stage resource
     type: 'bool'
-    default: False
+    default: None
     required: False
   cache_cluster_size:
     description: Specifies the size of the cache cluster for the Stage resource
@@ -164,7 +164,7 @@ class ApiGwStage:
     return dict( name=dict(required=True, aliases=['stage_name']),
                  rest_api_id=dict(required=True),
                  description=dict(required=False),
-                 cache_cluster_enabled=dict(required=False, type='bool', default=False),
+                 cache_cluster_enabled=dict(required=False, type='bool'),
                  cache_cluster_size=dict(required=False, choices=['0.5','1.6','6.1','13.5','28.4','58.2','118','237']),
                  method_settings=dict(
                    required=False,
