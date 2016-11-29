@@ -67,6 +67,9 @@ class TestApiGwStage(unittest.TestCase):
                      cache_cluster_enabled=dict(required=False, type='bool', default=False),
                      cache_cluster_size=dict(required=False, choices=['0.5','1.6','6.1','13.5','28.4','58.2','118','237']),
                      method_settings=dict(
+                       required=False,
+                       type='list',
+                       default=[],
                        method_name=dict(required=True),
                        method_verb=dict(required=True, choices=['GET','PUT','POST','DELETE','HEAD','OPTIONS','PATCH']),
                        caching_enabled=dict(required=False, default=False, type='bool')
