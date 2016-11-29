@@ -621,7 +621,7 @@ def update_method_response(method, params):
     elif 'responseModels' in mr_aws[code]:
       for content_type, model in mr_aws[code]['responseModels'].iteritems():
         if content_type not in mr_dict[code]:
-          patch_dict.setdefault(code, []).append(create_patch('delete', content_type, prefix='responseModels'))
+          patch_dict.setdefault(code, []).append(create_patch('remove', content_type, prefix='responseModels'))
 
   for code in patch_dict:
     ops['updates'].append(dict(
@@ -717,12 +717,12 @@ def update_integration_response(method, params):
       if 'responseTemplates' in ir_aws[code]:
         for ctype, tmpl in ir_aws[code]['responseTemplates'].iteritems():
           if ctype not in ir_dict[code]['response_templates']:
-            patch_dict.setdefault(code, []).append(create_patch('delete', ctype, prefix='responseTemplates'))
+            patch_dict.setdefault(code, []).append(create_patch('remove', ctype, prefix='responseTemplates'))
 
       if 'responseParameters' in ir_aws[code]:
         for param, value in ir_aws[code]['responseParameters'].iteritems():
           if param not in ir_dict[code]['response_params']:
-            patch_dict.setdefault(code, []).append(create_patch('delete', param, prefix='responseParameters'))
+            patch_dict.setdefault(code, []).append(create_patch('remove', param, prefix='responseParameters'))
 
   for code in patch_dict:
     ops['updates'].append(dict(

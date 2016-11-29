@@ -476,7 +476,7 @@ class TestApiGwMethod(unittest.TestCase):
     expected_patch_ops = [
       {'op': 'replace', 'path': '/responseModels/application~1json', 'value': 'Error'},
       {'op': 'add', 'path': '/responseModels/add', 'value': 'me'},
-      {'op': 'delete', 'path': '/responseModels/delete'},
+      {'op': 'remove', 'path': '/responseModels/delete'},
     ]
 
     self.method.process_request()
@@ -572,10 +572,10 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'replace', 'path': '/selectionPattern', 'value': 'totally-invalid-but-whatever'},
       {'op': 'replace', 'path': '/responseTemplates/application~1json', 'value': 'new-value'},
       {'op': 'add', 'path': '/responseTemplates/add', 'value': 'me'},
-      {'op': 'delete', 'path': '/responseTemplates/delete'},
+      {'op': 'remove', 'path': '/responseTemplates/delete'},
       {'op': 'replace', 'path': '/responseParameters/method.response.header.change', 'value': 'newval'},
       {'op': 'add', 'path': '/responseParameters/method.response.body.addme', 'value': 'bodyval'},
-      {'op': 'delete', 'path': '/responseParameters/also-delete'},
+      {'op': 'remove', 'path': '/responseParameters/also-delete'},
     ]
 
     self.method.process_request()
