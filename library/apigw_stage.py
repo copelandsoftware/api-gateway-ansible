@@ -86,11 +86,73 @@ EXAMPLES = '''
   hosts: localhost
   gather_facts: False
   tasks:
-TBD
+    - name: stage updatin'
+      apigw_stage:
+        rest_api_id: your_api_id
+        name: dev
+        description: 'This is a test of the emergency deployment system'
+        method_settings:
+          - method_name: /test
+            method_verb: PUT
+            caching_enabled: False
+      register: stage
+
+    - debug: var=stage
 '''
 
 RETURN = '''
-TBD
+{
+  "stage": {
+    "changed": true,
+    "stage": {
+      "ResponseMetadata": {
+        "HTTPHeaders": {
+          "content-length": "10449",
+          "content-type": "application/json",
+          "date": "Tue, 29 Nov 2016 14:31:48 GMT",
+          "x-amzn-requestid": "request id"
+        },
+        "HTTPStatusCode": 200,
+        "RequestId": "request id",
+        "RetryAttempts": 0
+      },
+      "cacheClusterEnabled": true,
+      "cacheClusterSize": "0.5",
+      "cacheClusterStatus": "AVAILABLE",
+      "createdDate": "2016-09-09T10:41:03-05:00",
+      "deploymentId": "7vvkyf",
+      "description": "This is a test of the emergency deployment system",
+      "lastUpdatedDate": "2016-11-29T08:31:46-06:00",
+      "methodSettings": {
+        "*/*": {
+          "cacheDataEncrypted": false,
+          "cacheTtlInSeconds": 600,
+          "cachingEnabled": true,
+          "dataTraceEnabled": true,
+          "loggingLevel": "INFO",
+          "metricsEnabled": true,
+          "requireAuthorizationForCacheControl": false,
+          "throttlingBurstLimit": -1,
+          "throttlingRateLimit": -1.0,
+          "unauthorizedCacheControlHeaderStrategy": "SUCCEED_WITH_RESPONSE_HEADER"
+        },
+        "~1test/PUT": {
+          "cacheDataEncrypted": false,
+          "cacheTtlInSeconds": 600,
+          "cachingEnabled": false,
+          "dataTraceEnabled": true,
+          "loggingLevel": "INFO",
+          "metricsEnabled": true,
+          "requireAuthorizationForCacheControl": false,
+          "throttlingBurstLimit": -1,
+          "throttlingRateLimit": -1.0,
+          "unauthorizedCacheControlHeaderStrategy": "SUCCEED_WITH_RESPONSE_HEADER"
+        },
+      },
+      "stageName": "dev"
+    }
+  }
+}
 '''
 
 __version__ = '${version}'
