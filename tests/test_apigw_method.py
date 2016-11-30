@@ -702,9 +702,62 @@ class TestApiGwMethod(unittest.TestCase):
     self.method.module.exit_json.assert_called_once_with(changed=True, method='Called post-create')
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_calls_get_authorizers_when_authorizer_id_provided(self, mock_find):
+    self.method.module.params['api_key_required'] = True
+    self.method.module.params['authorizer_id'] = 'Authorize!'
+
+    authorizers = [
+        {'id': 'FakeName', 'name': 'NotAuthorize!' },
+        {'id': 'RealName', 'name': 'Authorize!' },
+    ]
+
+    self.method.client.get_authorizers = mock.MagicMock(return_value=authorizers)
+
+    self.method.process_request()
+
+    self.method.client.get_authorizers.assert_called_once_with(restApiId='restid')
+
+    self.method.client.put_method.assert_called_once_with(
+        restApiId='restid',
+        resourceId='rsrcid',
+        httpMethod='GET',
+        authorizationType='NONE',
+        apiKeyRequired=True,
+        authorizerId='RealName',
+        requestParameters={}
+    )
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_calls_fail_json_when_authorizer_not_found(self, mock_find):
+    self.method.module.params['authorizer_id'] = 'Authorize!'
+
+    self.method.client.get_authorizers = mock.MagicMock(return_value=[])
+
+    self.method.process_request()
+
+    self.method.client.get_authorizers.assert_called_once_with(restApiId='restid')
+
+    self.method.module.fail_json.assert_called_once_with(
+      msg="Could not find authorizer_id for authorizer: Authorize!"
+    )
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
+  def test_process_request_calls_fail_json_when_get_authorizers_raises_exception(self, mock_find):
+    self.method.module.params['authorizer_id'] = 'Authorize!'
+
+    self.method.client.get_authorizers = mock.MagicMock(side_effect=BotoCoreError)
+
+    self.method.process_request()
+
+    self.method.client.get_authorizers.assert_called_once_with(restApiId='restid')
+
+    self.method.module.fail_json.assert_called_once_with(
+      msg='Error while fetching authorizers via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_calls_put_method_when_method_is_absent(self, mock_find):
     self.method.module.params['api_key_required'] = True
-    self.method.module.params['authorizer_id'] = 'id'
     self.method.module.params['request_params'] = [{
       'name': 'qs_param',
       'param_required': False,
@@ -731,7 +784,6 @@ class TestApiGwMethod(unittest.TestCase):
         resourceId='rsrcid',
         httpMethod='GET',
         authorizationType='NONE',
-        authorizerId='id',
         apiKeyRequired=True,
         requestParameters=request_params
     )
