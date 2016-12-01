@@ -706,10 +706,10 @@ class TestApiGwMethod(unittest.TestCase):
     self.method.module.params['api_key_required'] = True
     self.method.module.params['authorizer_id'] = 'Authorize!'
 
-    authorizers = [
+    authorizers = {'items':[
         {'id': 'FakeName', 'name': 'NotAuthorize!' },
         {'id': 'RealName', 'name': 'Authorize!' },
-    ]
+    ]}
 
     self.method.client.get_authorizers = mock.MagicMock(return_value=authorizers)
 
@@ -731,7 +731,7 @@ class TestApiGwMethod(unittest.TestCase):
   def test_process_request_calls_fail_json_when_authorizer_not_found(self, mock_find):
     self.method.module.params['authorizer_id'] = 'Authorize!'
 
-    self.method.client.get_authorizers = mock.MagicMock(return_value=[])
+    self.method.client.get_authorizers = mock.MagicMock(return_value={})
 
     self.method.process_request()
 

@@ -1016,7 +1016,7 @@ class ApiGwMethod:
       auth_name = self.module.params.get('authorizer_id')
       authorizers = self.client.get_authorizers(restApiId=self.module.params.get('rest_api_id'))
 
-      for authorizer in authorizers:
+      for authorizer in authorizers.get('items', []):
         if auth_name == authorizer['name']:
           return authorizer['id']
 
