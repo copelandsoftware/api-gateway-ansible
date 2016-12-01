@@ -498,12 +498,14 @@ def put_integration(params):
   )
 
   optional_map = {
-    'http_method': 'integrationHttpMethod',
-    'uri': 'uri',
     'passthrough_behavior': 'passthroughBehavior',
     'cache_namespace': 'cacheNamespace',
     'cache_key_parameters': 'cacheKeyParameters'
   }
+
+  if params['method_integration'].get('integration_type', 'AWS') in ['AWS', 'HTTP']:
+    optional_map['uri'] = 'uri'
+    optional_map['http_method'] = 'integrationHttpMethod'
 
   add_optional_params(params['method_integration'], args, optional_map)
 
@@ -515,11 +517,18 @@ def update_integration(method, params):
   mi_params = params.get('method_integration', {})
 
   param_map = {
-    'integration_type': 'type',
-    'http_method': 'httpMethod',
-    'uri': 'uri',
     'passthrough_behavior': 'passthroughBehavior',
   }
+
+  ops = []
+  if params.get('method_integration', {}).get('integration_type', 'AWS') in ['AWS', 'HTTP']:
+    param_map['uri'] = 'uri'
+
+    # stupid special snowflake crap
+    ops.extend(patch_builder(method.get('methodIntegration', {}), mi_params, {'http_method': 'httpMethod'}))
+    if ops:
+      ops[0]['path'] = '/integrationHttpMethod'
+
 
   if mi_params.get('uses_caching', False):
     param_map['cache_namespace'] = 'cacheNamespace'

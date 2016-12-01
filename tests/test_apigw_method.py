@@ -297,7 +297,7 @@ class TestApiGwMethod(unittest.TestCase):
   def test_process_request_calls_update_integration_when_present_and_changed(self, mock_find, mock_vp):
     mock_find.return_value = {
       'methodIntegration': {
-        'type': 'XXX',
+        'type': 'AWS',
         'httpMethod': 'POST',
         'uri': 'less-magical-uri',
         'passthroughBehavior': 'when_no_templates',
@@ -316,7 +316,7 @@ class TestApiGwMethod(unittest.TestCase):
       'resource_id': 'rsrcid',
       'name': 'GET',
       'method_integration': {
-        'integration_type': 'XXX',
+        'integration_type': 'AWS',
         'http_method': 'POST',
         'uri': 'magical-uri',
         'passthrough_behavior': 'when_no_templates',
@@ -352,6 +352,40 @@ class TestApiGwMethod(unittest.TestCase):
       patchOperations=mock.ANY
     )
     self.assertItemsEqual(expected_patch_ops, self.method.client.update_integration.call_args[1]['patchOperations'])
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_calls_skips_patching_http_method_and_uri_when_type_not_AWS(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'methodIntegration': {
+        'type': 'XXX',
+        'httpMethod': 'POST',
+        'uri': 'magical-uri',
+        'passthroughBehavior': 'when_no_templates',
+        'requestParameters': {},
+        'requestTemplates': {}
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_integration': {
+        'integration_type': 'XXX',
+        'http_method': 'totally different',
+        'uri': 'also totally different',
+        'passthrough_behavior': 'when_no_templates',
+        'request_templates': [],
+        'uses_caching': False,
+        'integration_params': [],
+      },
+      'state': 'present'
+    }
+
+    self.method.process_request()
+
+    self.assertEqual(0, self.method.client.update_integration.call_count)
 
   @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method')
@@ -397,7 +431,7 @@ class TestApiGwMethod(unittest.TestCase):
       'resource_id': 'rsrcid',
       'name': 'GET',
       'method_integration': {
-        'integration_type': 'XXX',
+        'integration_type': 'AWS',
         'http_method': 'POST',
         'uri': 'magical-uri',
         'passthrough_behavior': 'when_no_templates',
@@ -418,7 +452,7 @@ class TestApiGwMethod(unittest.TestCase):
       restApiId='restid',
       resourceId='rsrcid',
       httpMethod='GET',
-      type='XXX',
+      type='AWS',
       integrationHttpMethod='POST',
       uri='magical-uri',
       requestParameters={
