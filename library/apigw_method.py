@@ -523,9 +523,18 @@ def update_integration(method, params):
 
   if mi_params.get('uses_caching', False):
     param_map['cache_namespace'] = 'cacheNamespace'
-    param_map['cache_key_parameters'] = 'cacheKeyParameters'
 
   ops = patch_builder(method.get('methodIntegration', {}), mi_params, param_map)
+
+  if mi_params.get('uses_caching', False) and 'cache_key_parameters' in mi_params:
+    new_params = []
+    for ckp in mi_params.get('cache_key_parameters'):
+      if ckp not in method.get('methodIntegration', {}).get('cacheKeyParameters', []):
+        new_params.append(ckp)
+
+    if new_params:
+      ops.append(create_patch('replace', '/cacheKeyParameters', value=new_params))
+
   ops.extend(
     two_way_compare_patch_builder(
       method.get('methodIntegration', {}),

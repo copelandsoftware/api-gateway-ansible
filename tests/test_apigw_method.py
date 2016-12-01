@@ -303,7 +303,7 @@ class TestApiGwMethod(unittest.TestCase):
         'passthroughBehavior': 'when_no_templates',
         'requestParameters': {'method.request.path.bob': 'not-sure'},
         'cacheNamespace': '',
-        'cacheKeyParameters': [],
+        'cacheKeyParameters': [u'ckp1', u'ckp2'],
         'requestTemplates': {
           'deleteme': 'whatevs',
           'change/me': 'totally different value',
@@ -326,7 +326,7 @@ class TestApiGwMethod(unittest.TestCase):
         ],
         'uses_caching': True,
         'cache_namespace': 'cn',
-        'cache_key_parameters': [],
+        'cache_key_parameters': ['ckp2', 'ckp1'],
         'integration_params': [
           {'name': 'bob', 'location': 'path', 'value': 'sure'},
         ],
