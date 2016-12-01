@@ -66,7 +66,7 @@ class TestApiGwDeployment(unittest.TestCase):
                      stage_description=dict(required=False),
                      description=dict(required=False),
                      cache_cluster_enabled=dict(required=False, type='bool', default=False),
-                     cache_cluster_size=dict(required=False, choices=['0.5','1.6','6.1','13.5','28.4','58.2','118','237'])
+                     cache_cluster_size=dict(required=False, choices=['', '0.5','1.6','6.1','13.5','28.4','58.2','118','237'])
     ))
 
   def test_process_request_creates_deployment_and_calls_exit_json(self):
