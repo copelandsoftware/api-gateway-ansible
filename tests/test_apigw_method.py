@@ -297,7 +297,7 @@ class TestApiGwMethod(unittest.TestCase):
   def test_process_request_calls_update_integration_when_present_and_changed(self, mock_find, mock_vp):
     mock_find.return_value = {
       'methodIntegration': {
-        'type': 'AWS',
+        'type': 'wrong',
         'httpMethod': 'POST',
         'uri': 'less-magical-uri',
         'passthroughBehavior': 'when_no_templates',
@@ -316,7 +316,7 @@ class TestApiGwMethod(unittest.TestCase):
       'resource_id': 'rsrcid',
       'name': 'GET',
       'method_integration': {
-        'integration_type': 'AWS',
+        'integration_type': 'aws',
         'http_method': 'POST',
         'uri': 'magical-uri',
         'passthrough_behavior': 'when_no_templates',
@@ -335,6 +335,7 @@ class TestApiGwMethod(unittest.TestCase):
     }
 
     expected_patch_ops = [
+      {'op': 'replace', 'path': '/type', 'value': 'aws'},
       {'op': 'replace', 'path': '/uri', 'value': 'magical-uri'},
       {'op': 'replace', 'path': '/cacheNamespace', 'value': 'cn'},
       {'op': 'replace', 'path': '/requestParameters/method.request.path.bob', 'value': 'sure'},

@@ -518,10 +518,11 @@ def update_integration(method, params):
 
   param_map = {
     'passthrough_behavior': 'passthroughBehavior',
+    'integration_type': 'type',
   }
 
   ops = []
-  if params.get('method_integration', {}).get('integration_type', 'AWS') in ['AWS', 'HTTP']:
+  if params.get('method_integration', {}).get('integration_type', 'AWS').upper() in ['AWS', 'HTTP']:
     param_map['uri'] = 'uri'
 
     # stupid special snowflake crap
