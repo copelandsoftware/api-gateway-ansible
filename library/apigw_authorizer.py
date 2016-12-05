@@ -127,7 +127,17 @@ class ApiGwAuthorizer:
     Retrieve all authorizers in the account and match them against the provided name
     :return: Result matching the provided api name or an empty hash
     """
-    raise NotImplementedError
+    resp = None
+    try:
+      get_resp = self.client.get_authorizers(restApiId=self.module.params['rest_api_id'])
+
+      for item in get_resp.get('items', []):
+        if item['name'] == self.module.params.get('name'):
+          resp = item
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when getting authorizers from boto3: {}".format(e))
+
+    return resp
 
   @staticmethod
   def _is_changed(api, params):
@@ -144,7 +154,7 @@ class ApiGwAuthorizer:
     Process the user's request -- the primary code path
     :return: Returns either fail_json or exit_json
     """
-    raise NotImplementedError
+    self.me = self._retrieve_authorizer()
 
 def main():
     """

@@ -57,6 +57,59 @@ class TestApiGwAuthorizer(unittest.TestCase):
     ApiGwAuthorizer(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
 
+  def test_process_request_calls_get_authorizers_and_stores_result_when_invoked(self):
+    self.authorizer.module.params = {
+      'rest_api_id': 'rest_id',
+      'name': 'testify',
+    }
+
+    resp = {
+      'items': [
+        {'id': 'nope', 'name': 'nope'},
+        {'id': 'match', 'name': 'testify'}
+      ],
+    }
+    self.authorizer.client.get_authorizers = mock.MagicMock(return_value=resp)
+
+    self.authorizer.process_request()
+
+    self.assertEqual(resp['items'][1], self.authorizer.me)
+    self.authorizer.client.get_authorizers.assert_called_once_with(restApiId='rest_id')
+
+  def test_process_request_stores_None_result_when_not_found_in_get_authorizers_result(self):
+    self.authorizer.module.params = {
+      'rest_api_id': 'rest_id',
+      'name': 'testify',
+    }
+
+    resp = {
+      'items': [
+        {'id': 'nope', 'name': 'nope'},
+        {'id': 'not match', 'name': 'also nope'}
+      ],
+    }
+    self.authorizer.client.get_authorizers = mock.MagicMock(return_value=resp)
+
+    self.authorizer.process_request()
+
+    self.assertEqual(None, self.authorizer.me)
+    self.authorizer.client.get_authorizers.assert_called_once_with(restApiId='rest_id')
+
+  def test_process_request_calls_fail_json_when_get_authorizers_raises_exception(self):
+    self.authorizer.module.params = {
+      'rest_api_id': 'rest_id',
+      'name': 'testify',
+    }
+
+    self.authorizer.client.get_authorizers = mock.MagicMock(side_effect=BotoCoreError())
+
+    self.authorizer.process_request()
+
+    self.authorizer.client.get_authorizers.assert_called_once_with(restApiId='rest_id')
+    self.authorizer.module.fail_json.assert_called_once_with(
+      msg='Error when getting authorizers from boto3: An unspecified error occurred'
+    )
+
   def test_define_argument_spec(self):
     result = ApiGwAuthorizer._define_module_argument_spec()
     self.assertIsInstance(result, dict)
