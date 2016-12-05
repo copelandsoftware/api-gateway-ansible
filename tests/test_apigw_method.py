@@ -301,7 +301,8 @@ class TestApiGwMethod(unittest.TestCase):
         'httpMethod': 'POST',
         'uri': 'less-magical-uri',
         'passthroughBehavior': 'when_no_templates',
-        'requestParameters': {'method.request.path.bob': 'not-sure'},
+        'credentials': 'existing creds',
+        'requestParameters': {'integration.request.path.bob': 'not-sure'},
         'cacheNamespace': '',
         'cacheKeyParameters': [u'ckp1', u'ckp2'],
         'requestTemplates': {
@@ -319,6 +320,7 @@ class TestApiGwMethod(unittest.TestCase):
         'integration_type': 'aws',
         'http_method': 'POST',
         'uri': 'magical-uri',
+        'credentials': 'new creds',
         'passthrough_behavior': 'when_no_templates',
         'request_templates': [
           {'content_type': 'addme', 'template': 'addval'},
@@ -338,7 +340,8 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'replace', 'path': '/type', 'value': 'aws'},
       {'op': 'replace', 'path': '/uri', 'value': 'magical-uri'},
       {'op': 'replace', 'path': '/cacheNamespace', 'value': 'cn'},
-      {'op': 'replace', 'path': '/requestParameters/method.request.path.bob', 'value': 'sure'},
+      {'op': 'replace', 'path': '/credentials', 'value': 'new creds'},
+      {'op': 'replace', 'path': '/requestParameters/integration.request.path.bob', 'value': 'sure'},
       {'op': 'add', 'path': '/requestTemplates/addme', 'value': 'addval'},
       {'op': 'remove', 'path': '/requestTemplates/deleteme'},
       {'op': 'replace', 'path': '/requestTemplates/change~1me', 'value': 'changeval'},
@@ -457,7 +460,7 @@ class TestApiGwMethod(unittest.TestCase):
       integrationHttpMethod='POST',
       uri='magical-uri',
       requestParameters={
-        'method.request.path.bob': 'sure',
+        'integration.request.path.bob': 'sure',
       },
       requestTemplates={'addme': 'addval', 'change/me': 'changeval'},
       passthroughBehavior='when_no_templates',
@@ -829,6 +832,7 @@ class TestApiGwMethod(unittest.TestCase):
       'integration_type': 'AWS',
       'http_method': 'POST',
       'uri': 'valid_uri',
+      'credentials': 'creds',
       'passthrough_behavior': 'ptb',
       'request_templates': [{'content_type': 'application/json', 'template': '{}'}],
       'cache_namespace': 'cn',
@@ -847,10 +851,11 @@ class TestApiGwMethod(unittest.TestCase):
       type='AWS',
       integrationHttpMethod='POST',
       uri='valid_uri',
+      credentials='creds',
       requestParameters={
-        'method.request.querystring.qs_param': 'qsval',
-        'method.request.path.path_param': 'pathval',
-        'method.request.header.header_param': 'headerval'
+        'integration.request.querystring.qs_param': 'qsval',
+        'integration.request.path.path_param': 'pathval',
+        'integration.request.header.header_param': 'headerval'
       },
       requestTemplates={'application/json': '{}'},
       passthroughBehavior='ptb',
@@ -1177,6 +1182,7 @@ class TestApiGwMethod(unittest.TestCase):
                        integration_type=dict(required=False, default='AWS', choices=['AWS', 'MOCK', 'HTTP', 'HTTP_PROXY', 'AWS_PROXY']),
                        http_method=dict(required=False, default='POST', choices=['POST', 'GET', 'PUT']),
                        uri=dict(required=False),
+                       credentials=dict(required=False),
                        passthrough_behavior=dict(required=False, default='when_no_templates', choices=['when_no_templates', 'when_no_match', 'never']),
                        request_templates=dict(
                          required=False,

@@ -89,6 +89,11 @@ options:
         type: 'string'
         default: None
         required: False
+      credentials:
+        description: If present, use these credentials for the integration
+        type: 'string'
+        default: None
+        required: False
       passthrough_behavior:
         description: Specifies the pass-through behaving for incoming requests based on the Content-Type header in the request and the available mapping templates specified in C(request_templates).
         type: 'string'
@@ -493,15 +498,19 @@ def put_integration(params):
     resourceId=params.get('resource_id'),
     httpMethod=params.get('name'),
     type=params['method_integration'].get('integration_type', 'AWS'),
-    requestParameters=param_transformer(params['method_integration'].get('integration_params', []), 'request'),
+    requestParameters=param_transformer(params['method_integration'].get('integration_params', []), 'request', 'integration'),
     requestTemplates=add_templates(params['method_integration'].get('request_templates', []))
   )
 
   optional_map = {
+    'credentials': 'credentials',
     'passthrough_behavior': 'passthroughBehavior',
     'cache_namespace': 'cacheNamespace',
     'cache_key_parameters': 'cacheKeyParameters'
   }
+
+  if params.get('method_integration', {}).get('credentials', '') != '':
+    optional_map['credentials'] = 'credentials'
 
   if params['method_integration'].get('integration_type', 'AWS') in ['AWS', 'HTTP']:
     optional_map['uri'] = 'uri'
@@ -520,6 +529,9 @@ def update_integration(method, params):
     'passthrough_behavior': 'passthroughBehavior',
     'integration_type': 'type',
   }
+
+  if params.get('method_integration', {}).get('credentials', '') != '':
+    param_map['credentials'] = 'credentials'
 
   ops = []
   if params.get('method_integration', {}).get('integration_type', 'AWS').upper() in ['AWS', 'HTTP']:
@@ -548,7 +560,7 @@ def update_integration(method, params):
   ops.extend(
     two_way_compare_patch_builder(
       method.get('methodIntegration', {}),
-      param_transformer(mi_params.get('integration_params', []), 'request'),
+      param_transformer(mi_params.get('integration_params', []), 'request', 'integration'),
       'requestParameters'
     )
   )
@@ -766,11 +778,11 @@ def add_optional_params(params, args_dict, optional_args):
     if arg in params and params.get(arg) is not None:
       args_dict[optional_args[arg]] = params.get(arg)
 
-def param_transformer(params_list, type):
+def param_transformer(params_list, type, location='method'):
   params = {}
 
   for param in params_list:
-    key = "method.{0}.{1}.{2}".format(type, param['location'], param['name'])
+    key = "{3}.{0}.{1}.{2}".format(type, param['location'], param['name'], location)
     if 'param_required' in param:
       params[key] = param['param_required']
     elif 'value' in param:
@@ -824,6 +836,7 @@ class ApiGwMethod:
           ),
           http_method=dict(required=False, default='POST', choices=['POST', 'GET', 'PUT']),
           uri=dict(required=False),
+          credentials=dict(required=False),
           passthrough_behavior=dict(
             required=False,
             default='when_no_templates',
