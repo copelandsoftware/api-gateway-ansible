@@ -509,6 +509,9 @@ def put_integration(params):
     'cache_key_parameters': 'cacheKeyParameters'
   }
 
+  if params.get('method_integration', {}).get('credentials', '') != '':
+    optional_map['credentials'] = 'credentials'
+
   if params['method_integration'].get('integration_type', 'AWS') in ['AWS', 'HTTP']:
     optional_map['uri'] = 'uri'
     optional_map['http_method'] = 'integrationHttpMethod'
@@ -525,8 +528,10 @@ def update_integration(method, params):
   param_map = {
     'passthrough_behavior': 'passthroughBehavior',
     'integration_type': 'type',
-    'credentials': 'credentials',
   }
+
+  if params.get('method_integration', {}).get('credentials', '') != '':
+    param_map['credentials'] = 'credentials'
 
   ops = []
   if params.get('method_integration', {}).get('integration_type', 'AWS').upper() in ['AWS', 'HTTP']:
