@@ -89,6 +89,11 @@ options:
         type: 'string'
         default: None
         required: False
+      credentials:
+        description: If present, use these credentials for the integration
+        type: 'string'
+        default: None
+        required: False
       passthrough_behavior:
         description: Specifies the pass-through behaving for incoming requests based on the Content-Type header in the request and the available mapping templates specified in C(request_templates).
         type: 'string'
@@ -498,6 +503,7 @@ def put_integration(params):
   )
 
   optional_map = {
+    'credentials': 'credentials',
     'passthrough_behavior': 'passthroughBehavior',
     'cache_namespace': 'cacheNamespace',
     'cache_key_parameters': 'cacheKeyParameters'
@@ -519,6 +525,7 @@ def update_integration(method, params):
   param_map = {
     'passthrough_behavior': 'passthroughBehavior',
     'integration_type': 'type',
+    'credentials': 'credentials',
   }
 
   ops = []
@@ -824,6 +831,7 @@ class ApiGwMethod:
           ),
           http_method=dict(required=False, default='POST', choices=['POST', 'GET', 'PUT']),
           uri=dict(required=False),
+          credentials=dict(required=False),
           passthrough_behavior=dict(
             required=False,
             default='when_no_templates',
