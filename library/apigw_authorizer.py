@@ -140,12 +140,46 @@ class ApiGwAuthorizer:
     return resp
 
   def _delete_authorizer(self):
+    """
+    Delete authorizer that matches the returned id
+    :return: True
+    """
     try:
       if not self.module.check_mode:
         self.client.delete_authorizer(restApiId=self.module.params['rest_api_id'], authorizerId=self.me['id'])
       return True
     except BotoCoreError as e:
       self.module.fail_json(msg="Error when deleting authorizer via boto3: {}".format(e))
+
+  def _create_authorizer(self):
+    auth = None
+    changed = False
+
+    p = self.module.params
+
+    args = dict(
+      restApiId=p['rest_api_id'],
+      name=p['name'],
+      type=p['type'],
+      identitySource=p['identity_source']
+    )
+
+    optional_params = [
+      {'ans_param': 'provider_arns', 'boto_param': 'providerArns', 'default': []},
+      {'ans_param': 'auth_type', 'boto_param': 'authType', 'default': ''},
+      {'ans_param': 'uri', 'boto_param': 'authorizerUri', 'default': ''},
+      {'ans_param': 'credentials', 'boto_param': 'authorizerCredentials', 'default': ''},
+      {'ans_param': 'identity_validation_expression', 'boto_param': 'identityValidationExpression', 'default': ''},
+      {'ans_param': 'result_ttl_seconds', 'boto_param': 'authorizerResultTtlInSeconds', 'default': -1},
+    ]
+
+    for param in optional_params:
+      if param['ans_param'] in p and p.get(param['ans_param'], param['default']) != param['default']:
+        args[param['boto_param']] = p[param['ans_param']]
+
+    self.client.create_authorizer(**args)
+
+    return (changed, auth)
 
   @staticmethod
   def _is_changed(api, params):
@@ -162,13 +196,16 @@ class ApiGwAuthorizer:
     Process the user's request -- the primary code path
     :return: Returns either fail_json or exit_json
     """
+    auth = None
     changed = False
     self.me = self._retrieve_authorizer()
 
     if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
       changed = self._delete_authorizer()
+    elif self.module.params.get('state', 'present') == 'present':
+      (changed, auth) = self._create_authorizer()
 
-    self.module.exit_json(changed=changed, authorizer=None)
+    self.module.exit_json(changed=changed, authorizer=auth)
 
 def main():
     """

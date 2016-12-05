@@ -20,6 +20,15 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.module.fail_json = mock.MagicMock()
     self.authorizer  = ApiGwAuthorizer(self.module)
     self.authorizer.client = mock.MagicMock()
+    self.authorizer.module.params = {
+      'rest_api_id': 'rest_id',
+      'name': 'testify',
+      'type': 'token',
+      'uri': 'my uri',
+      'identity_source': 'source-arn',
+      'auth_type': 'yolo',
+      'state': 'present',
+    }
     reload(apigw_authorizer)
 
   def test_boto_module_not_found(self):
@@ -58,11 +67,6 @@ class TestApiGwAuthorizer(unittest.TestCase):
     mock_boto.client.assert_called_once_with('apigateway')
 
   def test_process_request_calls_get_authorizers_and_stores_result_when_invoked(self):
-    self.authorizer.module.params = {
-      'rest_api_id': 'rest_id',
-      'name': 'testify',
-    }
-
     resp = {
       'items': [
         {'id': 'nope', 'name': 'nope'},
@@ -77,11 +81,6 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.authorizer.client.get_authorizers.assert_called_once_with(restApiId='rest_id')
 
   def test_process_request_stores_None_result_when_not_found_in_get_authorizers_result(self):
-    self.authorizer.module.params = {
-      'rest_api_id': 'rest_id',
-      'name': 'testify',
-    }
-
     resp = {
       'items': [
         {'id': 'nope', 'name': 'nope'},
@@ -96,11 +95,6 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.authorizer.client.get_authorizers.assert_called_once_with(restApiId='rest_id')
 
   def test_process_request_calls_fail_json_when_get_authorizers_raises_exception(self):
-    self.authorizer.module.params = {
-      'rest_api_id': 'rest_id',
-      'name': 'testify',
-    }
-
     self.authorizer.client.get_authorizers = mock.MagicMock(side_effect=BotoCoreError())
 
     self.authorizer.process_request()
@@ -183,6 +177,26 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.authorizer.process_request()
 
     self.assertEqual(0, self.authorizer.client.delete_authorizer.call_count)
+
+  @patch.object(ApiGwAuthorizer, '_create_authorizer', return_value=('time', 'lord'))
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value=None)
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_create(self, mra, mca):
+    self.authorizer.process_request()
+
+    self.authorizer.module.exit_json.assert_called_once_with(changed='time', authorizer='lord')
+
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'id': 'found'})
+  def test_process_request_calls_create_authorizer_when_state_present_and_authorizer_not_found(self, m):
+    self.authorizer.process_request()
+
+    self.authorizer.client.create_authorizer.assert_called_once_with(
+      restApiId='rest_id',
+      name='testify',
+      type='token',
+      authType='yolo',
+      authorizerUri='my uri',
+      identitySource='source-arn'
+    )
 
   def test_define_argument_spec(self):
     result = ApiGwAuthorizer._define_module_argument_spec()
