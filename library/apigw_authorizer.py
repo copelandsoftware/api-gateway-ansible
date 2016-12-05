@@ -139,6 +139,14 @@ class ApiGwAuthorizer:
 
     return resp
 
+  def _delete_authorizer(self):
+    try:
+      if not self.module.check_mode:
+        self.client.delete_authorizer(restApiId=self.module.params['rest_api_id'], authorizerId=self.me['id'])
+      return True
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when deleting authorizer via boto3: {}".format(e))
+
   @staticmethod
   def _is_changed(api, params):
     """
@@ -154,7 +162,13 @@ class ApiGwAuthorizer:
     Process the user's request -- the primary code path
     :return: Returns either fail_json or exit_json
     """
+    changed = False
     self.me = self._retrieve_authorizer()
+
+    if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
+      changed = self._delete_authorizer()
+
+    self.module.exit_json(changed=changed, authorizer=None)
 
 def main():
     """

@@ -110,6 +110,80 @@ class TestApiGwAuthorizer(unittest.TestCase):
       msg='Error when getting authorizers from boto3: An unspecified error occurred'
     )
 
+  @patch.object(ApiGwAuthorizer, '_delete_authorizer', return_value='sprinkles')
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'id': 'found'})
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_delete(self, mra, mda):
+    self.authorizer.module.params = {
+      'rest_api_id': 'rest_id',
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.authorizer.process_request()
+
+    self.authorizer.module.exit_json.assert_called_once_with(changed='sprinkles', authorizer=None)
+
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'id': 'found'})
+  def test_process_request_calls_delete_authorizer_when_state_absent_and_authorizer_found(self, m):
+    self.authorizer.module.params = {
+      'rest_api_id': 'rest_id',
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.authorizer.process_request()
+
+    self.authorizer.client.delete_authorizer.assert_called_once_with(
+      restApiId='rest_id',
+      authorizerId='found'
+    )
+
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'id': 'found'})
+  def test_process_request_skips_delete_and_calls_exit_json_with_true_when_check_mode_set_and_auth_found(self, m):
+    self.authorizer.module.params = {
+      'rest_api_id': 'rest_id',
+      'name': 'testify',
+      'state': 'absent',
+    }
+    self.authorizer.module.check_mode = True
+
+    self.authorizer.process_request()
+
+    self.assertEqual(0, self.authorizer.client.delete_authorizer.call_count)
+    self.authorizer.module.exit_json.assert_called_once_with(changed=True, authorizer=None)
+
+
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'id': 'found'})
+  def test_process_request_calls_fail_json_when_delete_authorizer_raises_error(self, m):
+    self.authorizer.module.params = {
+      'rest_api_id': 'rest_id',
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.authorizer.client.delete_authorizer = mock.MagicMock(side_effect=BotoCoreError)
+    self.authorizer.process_request()
+
+    self.authorizer.client.delete_authorizer.assert_called_once_with(
+      restApiId='rest_id',
+      authorizerId='found'
+    )
+    self.authorizer.module.fail_json.assert_called_once_with(
+      msg='Error when deleting authorizer via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value=None)
+  def test_process_request_skips_delete_when_authorizer_not_found(self, m):
+    self.authorizer.module.params = {
+      'rest_api_id': 'rest_id',
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.authorizer.process_request()
+
+    self.assertEqual(0, self.authorizer.client.delete_authorizer.call_count)
+
   def test_define_argument_spec(self):
     result = ApiGwAuthorizer._define_module_argument_spec()
     self.assertIsInstance(result, dict)
