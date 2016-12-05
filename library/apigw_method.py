@@ -498,7 +498,7 @@ def put_integration(params):
     resourceId=params.get('resource_id'),
     httpMethod=params.get('name'),
     type=params['method_integration'].get('integration_type', 'AWS'),
-    requestParameters=param_transformer(params['method_integration'].get('integration_params', []), 'request'),
+    requestParameters=param_transformer(params['method_integration'].get('integration_params', []), 'request', 'integration'),
     requestTemplates=add_templates(params['method_integration'].get('request_templates', []))
   )
 
@@ -560,7 +560,7 @@ def update_integration(method, params):
   ops.extend(
     two_way_compare_patch_builder(
       method.get('methodIntegration', {}),
-      param_transformer(mi_params.get('integration_params', []), 'request'),
+      param_transformer(mi_params.get('integration_params', []), 'request', 'integration'),
       'requestParameters'
     )
   )
@@ -778,11 +778,11 @@ def add_optional_params(params, args_dict, optional_args):
     if arg in params and params.get(arg) is not None:
       args_dict[optional_args[arg]] = params.get(arg)
 
-def param_transformer(params_list, type):
+def param_transformer(params_list, type, location='method'):
   params = {}
 
   for param in params_list:
-    key = "method.{0}.{1}.{2}".format(type, param['location'], param['name'])
+    key = "{3}.{0}.{1}.{2}".format(type, param['location'], param['name'], location)
     if 'param_required' in param:
       params[key] = param['param_required']
     elif 'value' in param:

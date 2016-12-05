@@ -302,7 +302,7 @@ class TestApiGwMethod(unittest.TestCase):
         'uri': 'less-magical-uri',
         'passthroughBehavior': 'when_no_templates',
         'credentials': 'existing creds',
-        'requestParameters': {'method.request.path.bob': 'not-sure'},
+        'requestParameters': {'integration.request.path.bob': 'not-sure'},
         'cacheNamespace': '',
         'cacheKeyParameters': [u'ckp1', u'ckp2'],
         'requestTemplates': {
@@ -341,7 +341,7 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'replace', 'path': '/uri', 'value': 'magical-uri'},
       {'op': 'replace', 'path': '/cacheNamespace', 'value': 'cn'},
       {'op': 'replace', 'path': '/credentials', 'value': 'new creds'},
-      {'op': 'replace', 'path': '/requestParameters/method.request.path.bob', 'value': 'sure'},
+      {'op': 'replace', 'path': '/requestParameters/integration.request.path.bob', 'value': 'sure'},
       {'op': 'add', 'path': '/requestTemplates/addme', 'value': 'addval'},
       {'op': 'remove', 'path': '/requestTemplates/deleteme'},
       {'op': 'replace', 'path': '/requestTemplates/change~1me', 'value': 'changeval'},
@@ -460,7 +460,7 @@ class TestApiGwMethod(unittest.TestCase):
       integrationHttpMethod='POST',
       uri='magical-uri',
       requestParameters={
-        'method.request.path.bob': 'sure',
+        'integration.request.path.bob': 'sure',
       },
       requestTemplates={'addme': 'addval', 'change/me': 'changeval'},
       passthroughBehavior='when_no_templates',
@@ -853,9 +853,9 @@ class TestApiGwMethod(unittest.TestCase):
       uri='valid_uri',
       credentials='creds',
       requestParameters={
-        'method.request.querystring.qs_param': 'qsval',
-        'method.request.path.path_param': 'pathval',
-        'method.request.header.header_param': 'headerval'
+        'integration.request.querystring.qs_param': 'qsval',
+        'integration.request.path.path_param': 'pathval',
+        'integration.request.header.header_param': 'headerval'
       },
       requestTemplates={'application/json': '{}'},
       passthroughBehavior='ptb',
