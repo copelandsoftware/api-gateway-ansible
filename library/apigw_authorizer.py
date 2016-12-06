@@ -196,6 +196,15 @@ class ApiGwAuthorizer:
     """
     raise NotImplementedError
 
+  def _validate_params(self):
+    """
+    Determine if the provided args contain required fields
+    :return: Nothing.  Calls fail_json if fields are missing
+    """
+    for field in ['type', 'identity_source']:
+      if field not in self.module.params:
+        self.module.fail_json(msg="Field <{}> is required when state is present".format(field))
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -208,6 +217,7 @@ class ApiGwAuthorizer:
     if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
       changed = self._delete_authorizer()
     elif self.module.params.get('state', 'present') == 'present':
+      self._validate_params()
       (changed, auth) = self._create_authorizer()
 
     self.module.exit_json(changed=changed, authorizer=auth)

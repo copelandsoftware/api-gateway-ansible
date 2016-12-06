@@ -10,6 +10,7 @@ from mock import ANY
 import unittest
 import boto
 from botocore.exceptions import BotoCoreError
+import copy
 
 class TestApiGwAuthorizer(unittest.TestCase):
 
@@ -230,6 +231,23 @@ class TestApiGwAuthorizer(unittest.TestCase):
 
     self.assertEqual(0, self.authorizer.client.create_authorizer.call_count)
     self.authorizer.module.exit_json.assert_called_once_with(changed=True, authorizer=None)
+
+  @patch.object(ApiGwAuthorizer, '_create_authorizer', return_value=(None, None))
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer')
+  def test_process_request_calls_fail_json_when_state_present_and_required_fields_missing(self, mra, mca):
+    orig_params = copy.deepcopy(self.authorizer.module.params)
+    tests = [
+      {'field': 'type', 'message': 'Field <type> is required when state is present'},
+      {'field': 'identity_source', 'message': 'Field <identity_source> is required when state is present'},
+    ]
+
+    for t in tests:
+      self.authorizer.module.params = copy.deepcopy(orig_params)
+      self.authorizer.module.params.pop(t['field'], None)
+      self.authorizer.process_request()
+
+      self.authorizer.module.fail_json.assert_called_with(msg=t['message'])
+
 
   def test_define_argument_spec(self):
     result = ApiGwAuthorizer._define_module_argument_spec()
