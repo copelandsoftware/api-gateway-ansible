@@ -185,7 +185,15 @@ class TestApiGwAuthorizer(unittest.TestCase):
 
     self.authorizer.module.exit_json.assert_called_once_with(changed='time', authorizer='lord')
 
-  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'id': 'found'})
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value=None)
+  def test_process_request_returns_create_authorizer_result_when_create_succeeds(self, m):
+    self.authorizer.client.create_authorizer = mock.MagicMock(return_value='woot')
+    self.authorizer.process_request()
+
+    self.authorizer.module.exit_json.assert_called_once_with(changed=True, authorizer='woot')
+
+
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value=None)
   def test_process_request_calls_create_authorizer_when_state_present_and_authorizer_not_found(self, m):
     self.authorizer.process_request()
 
@@ -197,6 +205,31 @@ class TestApiGwAuthorizer(unittest.TestCase):
       authorizerUri='my uri',
       identitySource='source-arn'
     )
+
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value=None)
+  def test_process_request_calls_fail_json_when_create_authorizer_raises_exception(self, m):
+    self.authorizer.client.create_authorizer = mock.MagicMock(side_effect=BotoCoreError())
+    self.authorizer.process_request()
+
+    self.authorizer.client.create_authorizer.assert_called_once_with(
+      restApiId='rest_id',
+      name='testify',
+      type='token',
+      authType='yolo',
+      authorizerUri='my uri',
+      identitySource='source-arn'
+    )
+    self.authorizer.module.fail_json.assert_called_once_with(
+      msg='Error when creating authorizer via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value=None)
+  def test_process_request_skips_create_call_and_returns_changed_True_when_check_mode(self, m):
+    self.authorizer.module.check_mode = True
+    self.authorizer.process_request()
+
+    self.assertEqual(0, self.authorizer.client.create_authorizer.call_count)
+    self.authorizer.module.exit_json.assert_called_once_with(changed=True, authorizer=None)
 
   def test_define_argument_spec(self):
     result = ApiGwAuthorizer._define_module_argument_spec()

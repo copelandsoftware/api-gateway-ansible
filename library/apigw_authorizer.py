@@ -155,29 +155,34 @@ class ApiGwAuthorizer:
     auth = None
     changed = False
 
-    p = self.module.params
+    try:
+      changed = True
+      if not self.module.check_mode:
+        p = self.module.params
 
-    args = dict(
-      restApiId=p['rest_api_id'],
-      name=p['name'],
-      type=p['type'],
-      identitySource=p['identity_source']
-    )
+        args = dict(
+          restApiId=p['rest_api_id'],
+          name=p['name'],
+          type=p['type'],
+          identitySource=p['identity_source']
+        )
 
-    optional_params = [
-      {'ans_param': 'provider_arns', 'boto_param': 'providerArns', 'default': []},
-      {'ans_param': 'auth_type', 'boto_param': 'authType', 'default': ''},
-      {'ans_param': 'uri', 'boto_param': 'authorizerUri', 'default': ''},
-      {'ans_param': 'credentials', 'boto_param': 'authorizerCredentials', 'default': ''},
-      {'ans_param': 'identity_validation_expression', 'boto_param': 'identityValidationExpression', 'default': ''},
-      {'ans_param': 'result_ttl_seconds', 'boto_param': 'authorizerResultTtlInSeconds', 'default': -1},
-    ]
+        optional_params = [
+          {'ans_param': 'provider_arns', 'boto_param': 'providerArns', 'default': []},
+          {'ans_param': 'auth_type', 'boto_param': 'authType', 'default': ''},
+          {'ans_param': 'uri', 'boto_param': 'authorizerUri', 'default': ''},
+          {'ans_param': 'credentials', 'boto_param': 'authorizerCredentials', 'default': ''},
+          {'ans_param': 'identity_validation_expression', 'boto_param': 'identityValidationExpression', 'default': ''},
+          {'ans_param': 'result_ttl_seconds', 'boto_param': 'authorizerResultTtlInSeconds', 'default': -1},
+        ]
 
-    for param in optional_params:
-      if param['ans_param'] in p and p.get(param['ans_param'], param['default']) != param['default']:
-        args[param['boto_param']] = p[param['ans_param']]
+        for param in optional_params:
+          if param['ans_param'] in p and p.get(param['ans_param'], param['default']) != param['default']:
+            args[param['boto_param']] = p[param['ans_param']]
 
-    self.client.create_authorizer(**args)
+        auth = self.client.create_authorizer(**args)
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when creating authorizer via boto3: {}".format(e))
 
     return (changed, auth)
 
