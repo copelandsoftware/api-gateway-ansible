@@ -152,6 +152,10 @@ class ApiGwAuthorizer:
       self.module.fail_json(msg="Error when deleting authorizer via boto3: {}".format(e))
 
   def _create_authorizer(self):
+    """
+    Create authorizer from provided args
+    :return: True, result from create_authorizer
+    """
     auth = None
     changed = False
 
@@ -185,16 +189,6 @@ class ApiGwAuthorizer:
       self.module.fail_json(msg="Error when creating authorizer via boto3: {}".format(e))
 
     return (changed, auth)
-
-  @staticmethod
-  def _is_changed(api, params):
-    """
-    Determine if the discovered authorizer differs from the user-provided params
-    :param api: Result from _retrieve_authorizer()
-    :param params: Module params
-    :return: Boolean telling if result matches params
-    """
-    raise NotImplementedError
 
   def _validate_params(self):
     """
