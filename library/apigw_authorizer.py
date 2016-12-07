@@ -199,6 +199,67 @@ class ApiGwAuthorizer:
       if field not in self.module.params:
         self.module.fail_json(msg="Field <{}> is required when state is present".format(field))
 
+  @staticmethod
+  def _create_patches(params, me):
+    fields = [
+      {'ansible': 'type', 'boto': 'type', 'default': ''},
+      {'ansible': 'uri', 'boto': 'authorizerUri', 'default': ''},
+      {'ansible': 'identity_source', 'boto': 'identitySource', 'default': ''},
+      {'ansible': 'identity_validation_expression', 'boto': 'identityValidationExpression', 'default': ''},
+      {'ansible': 'auth_type', 'boto': 'authType', 'default': ''},
+      {'ansible': 'credentials', 'boto': 'authorizerCredentials', 'default': ''},
+      {'ansible': 'result_ttl_seconds', 'boto': 'authorizerResultTtlInSeconds', 'default': 0},
+    ]
+
+    patches = []
+    for f in fields:
+      # ignore if default
+      ans_arg = params.get(f['ansible'], f['default'])
+      if ans_arg is not None and ans_arg != f['default']:
+        if f['boto'] not in me:
+          patches.append({'op': 'add', 'path': "/{}".format(f['boto']), 'value': str(ans_arg)})
+        elif str(ans_arg).lower() != str(me.get(f['boto'])).lower():
+          patches.append({'op': 'replace', 'path': "/{}".format(f['boto']), 'value': str(ans_arg)})
+      elif f['boto'] in me:
+        patches.append({'op': 'remove', 'path': "/{}".format(f['boto'])})
+
+    # Magic for providerARNs
+    if 'providerARNs' in me:
+      if params.get('provider_arns', []) == []:
+        patches.append({'op': 'remove', 'path': '/providerARNs'})
+      # I'm ignoring the possibility of duplicate entries here because why would you do that?
+      elif set(params.get('provider_arns', [])) != set(me.get('providerARNs')):
+        patches.append({'op': 'replace', 'path': '/providerARNs', 'value': str(params.get('provider_arns'))})
+    elif params.get('provider_arns', []) != []:
+      patches.append({'op': 'add', 'path': '/providerARNs', 'value': str(params.get('provider_arns'))})
+
+    return patches
+
+  def _update_authorizer(self):
+    """
+    Create authorizer from provided args
+    :return: True, result from create_authorizer
+    """
+    auth = None
+    changed = False
+
+    try:
+      patches = ApiGwAuthorizer._create_patches(self.module.params, self.me)
+      if patches:
+        changed = True
+
+        if not self.module.check_mode:
+          self.client.update_authorizer(
+            restApiId=self.module.params['rest_api_id'],
+            authorizerId=self.me['id'],
+            patchOperations=patches
+          )
+          auth = self._retrieve_authorizer()
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when updating authorizer via boto3: {}".format(e))
+
+    return (changed, auth)
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -212,7 +273,10 @@ class ApiGwAuthorizer:
       changed = self._delete_authorizer()
     elif self.module.params.get('state', 'present') == 'present':
       self._validate_params()
-      (changed, auth) = self._create_authorizer()
+      if self.me is None:
+        (changed, auth) = self._create_authorizer()
+      else:
+        (changed, auth) = self._update_authorizer()
 
     self.module.exit_json(changed=changed, authorizer=auth)
 

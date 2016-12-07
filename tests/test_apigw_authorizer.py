@@ -67,7 +67,8 @@ class TestApiGwAuthorizer(unittest.TestCase):
     ApiGwAuthorizer(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
 
-  def test_process_request_calls_get_authorizers_and_stores_result_when_invoked(self):
+  @patch.object(ApiGwAuthorizer, '_update_authorizer', return_value=(None, None))
+  def test_process_request_calls_get_authorizers_and_stores_result_when_invoked(self, m):
     resp = {
       'items': [
         {'id': 'nope', 'name': 'nope'},
@@ -248,6 +249,111 @@ class TestApiGwAuthorizer(unittest.TestCase):
 
       self.authorizer.module.fail_json.assert_called_with(msg=t['message'])
 
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer')
+  def test_process_request_calls_update_authorizer_when_state_present_and_authorizer_changed(self, m):
+    self.authorizer.module.params = {
+      'rest_api_id': 'rest_id',
+      'name': 'testify',
+      'type': 'token',
+      'uri': 'my uri',
+      'identity_source': 'source-arn',
+      'auth_type': 'yolo',
+      'result_ttl_seconds': 12345,
+      'identity_validation_expression': 'add me',
+      'provider_arns': ['not', 'order', 'in'],
+      'state': 'present',
+    }
+
+    m.return_value = {
+			'authType': 'orig_auth_type',
+			'authorizerResultTtlInSeconds': 24601,
+			'authorizerUri': 'orig_auth_uri',
+			'id': 'id12345',
+			'identitySource': 'orig_identity_source',
+      'providerARNs': ['not', 'in', 'order'],
+			'name': 'testify',
+			'type': 'TOKEN',
+      'authorizerCredentials': 'orig_creds',
+    }
+
+    expected_patches = [
+      {'op': 'remove', 'path': '/authorizerCredentials'},
+      {'op': 'add', 'path': '/identityValidationExpression', 'value': 'add me'},
+      {'op': 'replace', 'path': '/authorizerUri', 'value': 'my uri'},
+      {'op': 'replace', 'path': '/identitySource', 'value': 'source-arn'},
+      {'op': 'replace', 'path': '/authorizerResultTtlInSeconds', 'value': '12345'},
+      {'op': 'replace', 'path': '/authType', 'value': 'yolo'},
+    ]
+
+    self.authorizer.process_request()
+
+    self.authorizer.client.update_authorizer.assert_called_once_with(
+      restApiId='rest_id',
+      authorizerId='id12345',
+      patchOperations=mock.ANY
+    )
+    self.assertItemsEqual(expected_patches, self.authorizer.client.update_authorizer.call_args[1]['patchOperations'])
+
+  @patch('library.apigw_authorizer.ApiGwAuthorizer._create_patches', return_value=[])
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'something': 'here'})
+  def test_process_request_skips_update_authorizer_and_replies_false_when_no_changes(self, m, mcp):
+    self.authorizer.process_request()
+
+    self.assertEqual(0, self.authorizer.client.update_method.call_count)
+    self.authorizer.module.exit_json.assert_called_once_with(changed=False, authorizer=None)
+
+  @patch('library.apigw_authorizer.ApiGwAuthorizer._create_patches', return_value=['patches!'])
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'id': 'hi'})
+  def test_process_request_calls_fail_json_when_update_authorizer_raises_exception(self, m, mcp):
+    self.authorizer.client.update_authorizer = mock.MagicMock(side_effect=BotoCoreError())
+    self.authorizer.process_request()
+
+    self.authorizer.client.update_authorizer.assert_called_once_with(
+      restApiId='rest_id',
+      authorizerId='hi',
+      patchOperations=['patches!']
+    )
+    self.authorizer.module.fail_json.assert_called_once_with(
+      msg='Error when updating authorizer via boto3: An unspecified error occurred'
+    )
+
+  @patch('library.apigw_authorizer.ApiGwAuthorizer._create_patches', return_value=['patches!'])
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', side_effect=[{'id': 'hi'}, 'second call'])
+  def test_process_request_returns_result_of_find_when_update_is_successful(self, m, mcp):
+    self.authorizer.process_request()
+
+    self.authorizer.client.update_authorizer.assert_called_once_with(
+      restApiId='rest_id',
+      authorizerId='hi',
+      patchOperations=['patches!']
+    )
+    self.authorizer.module.exit_json.assert_called_once_with(changed=True, authorizer='second call')
+
+  def test_define_argument_spec(self):
+    result = ApiGwAuthorizer._define_module_argument_spec()
+    self.assertIsInstance(result, dict)
+    self.assertEqual(result, dict(
+                     rest_api_id=dict(required=True),
+                     name=dict(required=True),
+                     type=dict(required=False, choices=['token', 'cognito_user_pools']),
+                     uri=dict(required=False),
+                     identity_source=dict(required=False),
+                     identity_validation_expression=dict(required=False, default=''),
+                     provider_arns=dict(required=False, type='list', default=[]),
+                     auth_type=dict(required=False),
+                     credentials=dict(required=False),
+                     result_ttl_seconds=dict(required=False, type='int', default=0),
+                     state=dict(default='present', choices=['present', 'absent']),
+    ))
+
+  @patch('library.apigw_authorizer.ApiGwAuthorizer._create_patches', return_value=['patches!'])
+  @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'something': 'here'})
+  def test_process_request_skips_update_authorizer_and_replies_true_when_check_mode(self, m, mcp):
+    self.authorizer.module.check_mode = True
+    self.authorizer.process_request()
+
+    self.assertEqual(0, self.authorizer.client.update_method.call_count)
+    self.authorizer.module.exit_json.assert_called_once_with(changed=True, authorizer=None)
 
   def test_define_argument_spec(self):
     result = ApiGwAuthorizer._define_module_argument_spec()
