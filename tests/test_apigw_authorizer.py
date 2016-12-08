@@ -24,7 +24,7 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.authorizer.module.params = {
       'rest_api_id': 'rest_id',
       'name': 'testify',
-      'type': 'token',
+      'type': 'TOKEN',
       'uri': 'my uri',
       'identity_source': 'source-arn',
       'auth_type': 'yolo',
@@ -202,7 +202,7 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.authorizer.client.create_authorizer.assert_called_once_with(
       restApiId='rest_id',
       name='testify',
-      type='token',
+      type='TOKEN',
       authType='yolo',
       authorizerUri='my uri',
       identitySource='source-arn'
@@ -216,7 +216,7 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.authorizer.client.create_authorizer.assert_called_once_with(
       restApiId='rest_id',
       name='testify',
-      type='token',
+      type='TOKEN',
       authType='yolo',
       authorizerUri='my uri',
       identitySource='source-arn'
@@ -254,7 +254,7 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.authorizer.module.params = {
       'rest_api_id': 'rest_id',
       'name': 'testify',
-      'type': 'token',
+      'type': 'TOKEN',
       'uri': 'my uri',
       'identity_source': 'source-arn',
       'auth_type': 'yolo',
@@ -329,23 +329,6 @@ class TestApiGwAuthorizer(unittest.TestCase):
     )
     self.authorizer.module.exit_json.assert_called_once_with(changed=True, authorizer='second call')
 
-  def test_define_argument_spec(self):
-    result = ApiGwAuthorizer._define_module_argument_spec()
-    self.assertIsInstance(result, dict)
-    self.assertEqual(result, dict(
-                     rest_api_id=dict(required=True),
-                     name=dict(required=True),
-                     type=dict(required=False, choices=['token', 'cognito_user_pools']),
-                     uri=dict(required=False),
-                     identity_source=dict(required=False),
-                     identity_validation_expression=dict(required=False, default=''),
-                     provider_arns=dict(required=False, type='list', default=[]),
-                     auth_type=dict(required=False),
-                     credentials=dict(required=False),
-                     result_ttl_seconds=dict(required=False, type='int', default=0),
-                     state=dict(default='present', choices=['present', 'absent']),
-    ))
-
   @patch('library.apigw_authorizer.ApiGwAuthorizer._create_patches', return_value=['patches!'])
   @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'something': 'here'})
   def test_process_request_skips_update_authorizer_and_replies_true_when_check_mode(self, m, mcp):
@@ -361,7 +344,7 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.assertEqual(result, dict(
                      rest_api_id=dict(required=True),
                      name=dict(required=True),
-                     type=dict(required=False, choices=['token', 'cognito_user_pools']),
+                     type=dict(required=False, choices=['TOKEN', 'COGNITO_USER_POOLS']),
                      uri=dict(required=False),
                      identity_source=dict(required=False),
                      identity_validation_expression=dict(required=False, default=''),
