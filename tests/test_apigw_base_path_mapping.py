@@ -102,6 +102,74 @@ class TestApiGwBasePathMapping(unittest.TestCase):
       msg='Error when getting base_path_mappings from boto3: An unspecified error occurred'
     )
 
+  @patch.object(ApiGwBasePathMapping, '_delete_base_path_mapping', return_value='Mitchell!')
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value='found')
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_delete(self, mr, md):
+    self.bpm.module.params = {
+      'base_path': 'test_base_path',
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.bpm.process_request()
+
+    self.bpm.module.exit_json.assert_called_once_with(changed='Mitchell!', base_path_mapping=None)
+
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value='found!')
+  def test_process_request_calls_delete_base_path_mapping_when_state_absent_and_base_path_mapping_found(self, m):
+    self.bpm.module.params = {
+      'base_path': 'test_base_path',
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.bpm.process_request()
+
+    self.bpm.client.delete_base_path_mapping.assert_called_once_with(domainName='testify', basePath='test_base_path')
+
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value={'id': 'found'})
+  def test_process_request_skips_delete_and_calls_exit_json_with_true_when_check_mode_set_and_auth_found(self, m):
+    self.bpm.module.params = {
+      'base_path': 'test_base_path',
+      'name': 'testify',
+      'state': 'absent',
+    }
+    self.bpm.module.check_mode = True
+
+    self.bpm.process_request()
+
+    self.assertEqual(0, self.bpm.client.delete_base_path_mapping.call_count)
+    self.bpm.module.exit_json.assert_called_once_with(changed=True, base_path_mapping=None)
+
+
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value={'id': 'found'})
+  def test_process_request_calls_fail_json_when_delete_base_path_mapping_raises_error(self, m):
+    self.bpm.module.params = {
+      'base_path': 'test_base_path',
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.bpm.client.delete_base_path_mapping = mock.MagicMock(side_effect=BotoCoreError)
+    self.bpm.process_request()
+
+    self.bpm.client.delete_base_path_mapping.assert_called_once_with(domainName='testify', basePath='test_base_path')
+    self.bpm.module.fail_json.assert_called_once_with(
+      msg='Error when deleting base_path_mapping via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value=None)
+  def test_process_request_skips_delete_when_base_path_mapping_not_found(self, m):
+    self.bpm.module.params = {
+      'base_path': 'test_base_path',
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.bpm.process_request()
+
+    self.assertEqual(0, self.bpm.client.delete_base_path_mapping.call_count)
+
 
   def test_define_argument_spec(self):
     result = ApiGwBasePathMapping._define_module_argument_spec()

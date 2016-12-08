@@ -111,6 +111,21 @@ class ApiGwBasePathMapping:
 
     return resp
 
+  def _delete_base_path_mapping(self):
+    """
+    Delete base_path_mapping that matches the returned id
+    :return: True
+    """
+    try:
+      if not self.module.check_mode:
+        self.client.delete_base_path_mapping(
+          domainName=self.module.params['name'],
+          basePath=self.module.params['base_path']
+        )
+      return True
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when deleting base_path_mapping via boto3: {}".format(e))
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -120,6 +135,10 @@ class ApiGwBasePathMapping:
     changed = False
     self.me = self._retrieve_base_path_mapping()
 
+    if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
+      changed = self._delete_base_path_mapping()
+
+    self.module.exit_json(changed=changed, base_path_mapping=bpm)
 
 def main():
     """
