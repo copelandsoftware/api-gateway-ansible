@@ -241,7 +241,7 @@ class ApiGwAuthorizer:
     Create authorizer from provided args
     :return: True, result from create_authorizer
     """
-    auth = None
+    auth = self.me
     changed = False
 
     try:

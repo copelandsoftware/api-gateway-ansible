@@ -300,7 +300,7 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.authorizer.process_request()
 
     self.assertEqual(0, self.authorizer.client.update_method.call_count)
-    self.authorizer.module.exit_json.assert_called_once_with(changed=False, authorizer=None)
+    self.authorizer.module.exit_json.assert_called_once_with(changed=False, authorizer={'something': 'here'})
 
   @patch('library.apigw_authorizer.ApiGwAuthorizer._create_patches', return_value=['patches!'])
   @patch.object(ApiGwAuthorizer, '_retrieve_authorizer', return_value={'id': 'hi'})
@@ -336,7 +336,7 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.authorizer.process_request()
 
     self.assertEqual(0, self.authorizer.client.update_method.call_count)
-    self.authorizer.module.exit_json.assert_called_once_with(changed=True, authorizer=None)
+    self.authorizer.module.exit_json.assert_called_once_with(changed=True, authorizer={'something': 'here'})
 
   def test_define_argument_spec(self):
     result = ApiGwAuthorizer._define_module_argument_spec()
