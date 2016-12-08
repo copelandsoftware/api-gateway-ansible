@@ -1034,19 +1034,6 @@ class ApiGwMethod:
 
     return changed, response
 
-  def _lookup_authorizer(self):
-    try:
-      auth_name = self.module.params.get('authorizer_id')
-      authorizers = self.client.get_authorizers(restApiId=self.module.params.get('rest_api_id'))
-
-      for authorizer in authorizers.get('items', []):
-        if auth_name == authorizer['name']:
-          return authorizer['id']
-
-      self.module.fail_json(msg='Could not find authorizer_id for authorizer: {}'.format(auth_name))
-    except BotoCoreError as e:
-      self.module.fail_json(msg='Error while fetching authorizers via boto3: {}'.format(e))
-
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -1056,10 +1043,6 @@ class ApiGwMethod:
 
     changed = False
     response = None
-
-    # This should be removed once there is a module to create authorizers
-    if self.module.params.get('state', 'present') == 'present' and self.module.params.get('authorizer_id', '') != '':
-      self.module.params['authorizer_id'] = self._lookup_authorizer()
 
     if self.method is not None and self.module.params.get('state') == 'absent':
       self._delete_method()
