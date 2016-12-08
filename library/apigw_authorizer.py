@@ -180,9 +180,10 @@ class ApiGwAuthorizer:
           {'ans_param': 'result_ttl_seconds', 'boto_param': 'authorizerResultTtlInSeconds', 'default': -1},
         ]
 
-        for param in optional_params:
-          if param['ans_param'] in p and p.get(param['ans_param'], param['default']) != param['default']:
-            args[param['boto_param']] = p[param['ans_param']]
+        for op in optional_params:
+          param_value = p.get(op['ans_param'], op['default'])
+          if param_value is not None and param_value != op['default']:
+            args[op['boto_param']] = p[op['ans_param']]
 
         auth = self.client.create_authorizer(**args)
     except BotoCoreError as e:
