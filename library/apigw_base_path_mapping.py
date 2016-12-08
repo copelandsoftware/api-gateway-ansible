@@ -15,8 +15,8 @@
 
 DOCUMENTATION='''
 module: apigw_base_path_mapping
-description: An Ansible module to add, update, or remove Base Path Mapping resources for
-  AWS API Gateway.
+description: An Ansible module to add, update, or remove Base Path Mapping
+  resources for AWS API Gateway.
 version_added: "2.2"
 options:
   name:
@@ -30,6 +30,7 @@ options:
     required: False
   base_path:
     description: The base path name that callers of the api must provide.
+      Required when updating or deleting the mapping.
     default: (none)
     required: False
   stage:
@@ -93,12 +94,32 @@ class ApiGwBasePathMapping:
                  state=dict(default='present', choices=['present', 'absent']),
     )
 
+  def _retrieve_base_path_mapping(self):
+    """
+    Retrieve all base_path_mappings in the account and match them against the provided name
+    :return: Result matching the provided api name or an empty hash
+    """
+    resp = None
+    try:
+      get_resp = self.client.get_base_path_mappings(domainName=self.module.params['name'])
+
+      for item in get_resp.get('items', []):
+        if item['basePath'] == self.module.params.get('base_path', '(none)'):
+          resp = item
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when getting base_path_mappings from boto3: {}".format(e))
+
+    return resp
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
     :return: Returns either fail_json or exit_json
     """
-    raise NotImplementedError
+    bpm = None
+    changed = False
+    self.me = self._retrieve_base_path_mapping()
+
 
 def main():
     """

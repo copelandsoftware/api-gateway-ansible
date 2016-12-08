@@ -23,6 +23,7 @@ class TestApiGwBasePathMapping(unittest.TestCase):
     self.bpm.module.params = {
       'name': 'testify',
       'rest_api_id': 'rest_id',
+      'base_path': 'test_base_path',
       'stage': 'test_stage',
       'state': 'present',
     }
@@ -62,6 +63,44 @@ class TestApiGwBasePathMapping(unittest.TestCase):
   def test_boto3_client_properly_instantiated(self, mock_boto):
     ApiGwBasePathMapping(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
+
+  def test_process_request_calls_get_base_path_mappings_and_stores_result_when_invoked(self):
+    resp = {
+      'items': [
+        {'basePath': 'not a match', 'restApiId': 'rest_api_id', 'stage': 'whatever'},
+        {'basePath': 'test_base_path', 'restApiId': 'rest_api_id', 'stage': 'yes'},
+      ],
+    }
+    self.bpm.client.get_base_path_mappings = mock.MagicMock(return_value=resp)
+
+    self.bpm.process_request()
+
+    self.assertEqual(resp['items'][1], self.bpm.me)
+    self.bpm.client.get_base_path_mappings.assert_called_once_with(domainName='testify')
+
+  def test_process_request_stores_None_result_when_not_found_in_get_base_path_mappings_result(self):
+    resp = {
+      'items': [
+        {'basePath': 'not a match', 'restApiId': 'rest_api_id', 'stage': 'whatever'},
+        {'basePath': 'not so much', 'restApiId': 'rest_api_id', 'stage': 'yes'},
+      ],
+    }
+    self.bpm.client.get_base_path_mappings = mock.MagicMock(return_value=resp)
+
+    self.bpm.process_request()
+
+    self.assertEqual(None, self.bpm.me)
+    self.bpm.client.get_base_path_mappings.assert_called_once_with(domainName='testify')
+
+  def test_process_request_calls_fail_json_when_get_base_path_mappings_raises_exception(self):
+    self.bpm.client.get_base_path_mappings = mock.MagicMock(side_effect=BotoCoreError())
+
+    self.bpm.process_request()
+
+    self.bpm.client.get_base_path_mappings.assert_called_once_with(domainName='testify')
+    self.bpm.module.fail_json.assert_called_once_with(
+      msg='Error when getting base_path_mappings from boto3: An unspecified error occurred'
+    )
 
 
   def test_define_argument_spec(self):
