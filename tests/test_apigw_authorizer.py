@@ -265,20 +265,20 @@ class TestApiGwAuthorizer(unittest.TestCase):
     }
 
     m.return_value = {
-			'authType': 'orig_auth_type',
-			'authorizerResultTtlInSeconds': 24601,
-			'authorizerUri': 'orig_auth_uri',
-			'id': 'id12345',
-			'identitySource': 'orig_identity_source',
+      'authType': 'orig_auth_type',
+      'authorizerResultTtlInSeconds': 24601,
+      'authorizerUri': 'orig_auth_uri',
+      'id': 'id12345',
+      'identitySource': 'orig_identity_source',
       'providerARNs': ['not', 'in', 'order'],
-			'name': 'testify',
-			'type': 'TOKEN',
+      'name': 'testify',
+      'type': 'TOKEN',
       'authorizerCredentials': 'orig_creds',
     }
 
     expected_patches = [
-      {'op': 'remove', 'path': '/authorizerCredentials'},
-      {'op': 'add', 'path': '/identityValidationExpression', 'value': 'add me'},
+      {'op': 'replace', 'path': '/identityValidationExpression', 'value': 'add me'},
+      {'op': 'replace', 'path': '/authorizerCredentials', 'value': ''},
       {'op': 'replace', 'path': '/authorizerUri', 'value': 'my uri'},
       {'op': 'replace', 'path': '/identitySource', 'value': 'source-arn'},
       {'op': 'replace', 'path': '/authorizerResultTtlInSeconds', 'value': '12345'},

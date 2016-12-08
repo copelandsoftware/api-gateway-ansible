@@ -217,7 +217,7 @@ class ApiGwAuthorizer:
           {'ans_param': 'uri', 'boto_param': 'authorizerUri', 'default': ''},
           {'ans_param': 'credentials', 'boto_param': 'authorizerCredentials', 'default': ''},
           {'ans_param': 'identity_validation_expression', 'boto_param': 'identityValidationExpression', 'default': ''},
-          {'ans_param': 'result_ttl_seconds', 'boto_param': 'authorizerResultTtlInSeconds', 'default': -1},
+          {'ans_param': 'result_ttl_seconds', 'boto_param': 'authorizerResultTtlInSeconds', 'default': 0},
         ]
 
         for op in optional_params:
@@ -254,15 +254,9 @@ class ApiGwAuthorizer:
 
     patches = []
     for f in fields:
-      # ignore if default
       ans_arg = params.get(f['ansible'], f['default'])
-      if ans_arg is not None and ans_arg != f['default']:
-        if f['boto'] not in me:
-          patches.append({'op': 'add', 'path': "/{}".format(f['boto']), 'value': str(ans_arg)})
-        elif str(ans_arg).lower() != str(me.get(f['boto'])).lower():
-          patches.append({'op': 'replace', 'path': "/{}".format(f['boto']), 'value': str(ans_arg)})
-      elif f['boto'] in me:
-        patches.append({'op': 'remove', 'path': "/{}".format(f['boto'])})
+      if ans_arg is not None and str(ans_arg).lower() != str(me.get(f['boto'])).lower():
+        patches.append({'op': 'replace', 'path': "/{}".format(f['boto']), 'value': str(ans_arg)})
 
     # Magic for providerARNs
     if 'providerARNs' in me:
