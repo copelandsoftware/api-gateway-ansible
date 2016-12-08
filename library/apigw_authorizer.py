@@ -76,11 +76,51 @@ notes:
 '''
 
 EXAMPLES = '''
-TBD
+---
+- hosts: localhost
+  gather_facts: False
+  tasks:
+  - name: provision!
+    apigw_authorizer:
+      rest_api_id: 54321lmnop
+      name: test_authorizer
+      type: TOKEN
+      auth_type: custom
+      uri: some.uri.here
+      result_ttl_seconds: 456
+      identity_source: method.request.header.Authorization
+      identity_validation_expression: "^cool.*regex?$"
+      state: present
+    register: auth
+
+  - debug: var=auth
 '''
 
 RETURN = '''
-TBD
+{
+	"authorizer": {
+		"ResponseMetadata": {
+			"HTTPHeaders": {
+				"content-length": "426",
+				"content-type": "application/json",
+				"date": "Thu, 08 Dec 2016 04:01:46 GMT",
+				"x-amzn-requestid": "<some id>"
+			},
+			"HTTPStatusCode": 201,
+			"RequestId": "<some id>",
+			"RetryAttempts": 0
+		},
+		"authType": "custom",
+		"authorizerResultTtlInSeconds": 456,
+		"authorizerUri": "arn:aws:apigateway:more:valid:uri:here",
+		"id": "abcdefg43",
+		"identitySource": "method.request.header.Authorization",
+		"identityValidationExpression": "^nifty.*regex+here",
+		"name": "test_authorizer",
+		"type": "TOKEN"
+	},
+	"changed": true
+}
 '''
 
 __version__ = '${version}'
