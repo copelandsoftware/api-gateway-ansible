@@ -126,6 +126,34 @@ class ApiGwBasePathMapping:
     except BotoCoreError as e:
       self.module.fail_json(msg="Error when deleting base_path_mapping via boto3: {}".format(e))
 
+  def _create_base_path_mapping(self):
+    """
+    Create base_path_mapping from provided args
+    :return: True, result from create_base_path_mapping
+    """
+    bpm = None
+    changed = False
+
+    try:
+      changed = True
+      if not self.module.check_mode:
+        args = dict(
+          domainName=self.module.params['name'],
+          restApiId=self.module.params['rest_api_id'],
+          basePath=self.module.params.get('base_path', '(none)'),
+        )
+
+        stage = self.module.params.get('stage', None)
+        if stage is not None and stage != '':
+          args['stage'] = stage
+
+        bpm = self.client.create_base_path_mapping(**args)
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when creating base_path_mapping via boto3: {}".format(e))
+
+    return (changed, bpm)
+
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -137,6 +165,9 @@ class ApiGwBasePathMapping:
 
     if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
       changed = self._delete_base_path_mapping()
+    elif self.module.params.get('state', 'present') == 'present':
+      if self.me is None:
+        (changed, bpm) = self._create_base_path_mapping()
 
     self.module.exit_json(changed=changed, base_path_mapping=bpm)
 

@@ -170,6 +170,55 @@ class TestApiGwBasePathMapping(unittest.TestCase):
 
     self.assertEqual(0, self.bpm.client.delete_base_path_mapping.call_count)
 
+  @patch.object(ApiGwBasePathMapping, '_create_base_path_mapping', return_value=('heart', 'pumping'))
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value=None)
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_create(self, mra, mca):
+    self.bpm.process_request()
+
+    self.bpm.module.exit_json.assert_called_once_with(changed='heart', base_path_mapping='pumping')
+
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value=None)
+  def test_process_request_returns_create_base_path_mapping_result_when_create_succeeds(self, m):
+    self.bpm.client.create_base_path_mapping = mock.MagicMock(return_value='woot')
+    self.bpm.process_request()
+
+    self.bpm.module.exit_json.assert_called_once_with(changed=True, base_path_mapping='woot')
+
+
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value=None)
+  def test_process_request_calls_create_base_path_mapping_when_state_present_and_base_path_mapping_not_found(self, m):
+    self.bpm.process_request()
+
+    self.bpm.client.create_base_path_mapping.assert_called_once_with(
+      domainName='testify',
+      restApiId='rest_id',
+      basePath='test_base_path',
+      stage='test_stage'
+    )
+
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value=None)
+  def test_process_request_calls_fail_json_when_create_base_path_mapping_raises_exception(self, m):
+    self.bpm.client.create_base_path_mapping = mock.MagicMock(side_effect=BotoCoreError())
+    self.bpm.process_request()
+
+    self.bpm.client.create_base_path_mapping.assert_called_once_with(
+      domainName='testify',
+      restApiId='rest_id',
+      basePath='test_base_path',
+      stage='test_stage'
+    )
+    self.bpm.module.fail_json.assert_called_once_with(
+      msg='Error when creating base_path_mapping via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value=None)
+  def test_process_request_skips_create_call_and_returns_changed_True_when_check_mode(self, m):
+    self.bpm.module.check_mode = True
+    self.bpm.process_request()
+
+    self.assertEqual(0, self.bpm.client.create_base_path_mapping.call_count)
+    self.bpm.module.exit_json.assert_called_once_with(changed=True, base_path_mapping=None)
+
 
   def test_define_argument_spec(self):
     result = ApiGwBasePathMapping._define_module_argument_spec()
