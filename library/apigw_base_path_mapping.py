@@ -54,11 +54,32 @@ notes:
 '''
 
 EXAMPLES = '''
-TBD
+---
+- hosts: localhost
+  gather_facts: False
+  tasks:
+  - name: do base path stuff
+    apigw_base_path_mapping:
+      name: dev.example.com
+      rest_api_id: abcd1234
+      stage: live
+      state: present
+    register: bpm
+
+  - debug: var=bpm
 '''
 
 RETURN = '''
-TBD
+{
+  "bpm": {
+    "base_path_mapping": {
+      "basePath": "(none)",
+      "restApiId": "41pz250gl3",
+      "stage": "live"
+    },
+    "changed": false
+  }
+}
 '''
 
 __version__ = '${version}'
