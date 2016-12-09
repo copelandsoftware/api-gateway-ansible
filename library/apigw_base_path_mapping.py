@@ -134,22 +134,26 @@ class ApiGwBasePathMapping:
     bpm = None
     changed = False
 
-    try:
-      changed = True
-      if not self.module.check_mode:
-        args = dict(
-          domainName=self.module.params['name'],
-          restApiId=self.module.params['rest_api_id'],
-          basePath=self.module.params.get('base_path', '(none)'),
-        )
+    if self.module.params.get('rest_api_id', None) is None:
+      self.module.fail_json(msg="Field 'rest_api_id' is required when attempting to create a Base Path Mapping resource")
 
-        stage = self.module.params.get('stage', None)
-        if stage is not None and stage != '':
-          args['stage'] = stage
+    else:
+      try:
+        changed = True
+        if not self.module.check_mode:
+          args = dict(
+            domainName=self.module.params['name'],
+            restApiId=self.module.params['rest_api_id'],
+            basePath=self.module.params.get('base_path', '(none)'),
+          )
 
-        bpm = self.client.create_base_path_mapping(**args)
-    except BotoCoreError as e:
-      self.module.fail_json(msg="Error when creating base_path_mapping via boto3: {}".format(e))
+          stage = self.module.params.get('stage', None)
+          if stage is not None and stage != '':
+            args['stage'] = stage
+
+          bpm = self.client.create_base_path_mapping(**args)
+      except BotoCoreError as e:
+        self.module.fail_json(msg="Error when creating base_path_mapping via boto3: {}".format(e))
 
     return (changed, bpm)
 

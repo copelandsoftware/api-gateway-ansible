@@ -220,6 +220,16 @@ class TestApiGwBasePathMapping(unittest.TestCase):
     self.assertEqual(0, self.bpm.client.create_base_path_mapping.call_count)
     self.bpm.module.exit_json.assert_called_once_with(changed=True, base_path_mapping=None)
 
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value=None)
+  def test_process_request_calls_fail_json_when_state_present_and_required_field_missing(self, mra):
+
+    self.bpm.module.params.pop('rest_api_id', None)
+    self.bpm.process_request()
+
+    self.bpm.module.fail_json.assert_called_with(
+      msg="Field 'rest_api_id' is required when attempting to create a Base Path Mapping resource"
+    )
+
   @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping')
   def test_process_request_calls_update_base_path_mapping_when_state_present_and_base_path_mapping_changed(self, m):
     m.return_value = {
