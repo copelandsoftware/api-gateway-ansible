@@ -123,6 +123,19 @@ class ApiGwApiKey:
 
     return resp
 
+  def _delete_api_key(self):
+    """
+    Delete api_key that matches the returned id
+    :return: True
+    """
+    try:
+      if not self.module.check_mode:
+        self.client.delete_api_key(apiKey=self.me['id'])
+      return True
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when deleting api_key via boto3: {}".format(e))
+
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -133,6 +146,10 @@ class ApiGwApiKey:
     changed = False
     self.me = self._retrieve_api_key()
 
+    if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
+      changed = self._delete_api_key()
+
+    self.module.exit_json(changed=changed, api_key=api_key)
 
 def main():
     """

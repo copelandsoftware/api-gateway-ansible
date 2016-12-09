@@ -103,6 +103,69 @@ class TestApiGwApiKey(unittest.TestCase):
       msg='Error when getting api_keys from boto3: An unspecified error occurred'
     )
 
+  @patch.object(ApiGwApiKey, '_delete_api_key', return_value='Mitchell!')
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value={'id': 'found'})
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_delete(self, mr, md):
+    self.api_key.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.api_key.process_request()
+
+    self.api_key.module.exit_json.assert_called_once_with(changed='Mitchell!', api_key=None)
+
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value={'id': 'found'})
+  def test_process_request_calls_delete_api_key_when_state_absent_and_api_key_found(self, m):
+    self.api_key.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.api_key.process_request()
+
+    self.api_key.client.delete_api_key.assert_called_once_with(apiKey='found')
+
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value={'id': 'found'})
+  def test_process_request_skips_delete_and_calls_exit_json_with_true_when_check_mode_set_and_auth_found(self, m):
+    self.api_key.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+    self.api_key.module.check_mode = True
+
+    self.api_key.process_request()
+
+    self.assertEqual(0, self.api_key.client.delete_api_key.call_count)
+    self.api_key.module.exit_json.assert_called_once_with(changed=True, api_key=None)
+
+
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value={'id': 'found'})
+  def test_process_request_calls_fail_json_when_delete_api_key_raises_error(self, m):
+    self.api_key.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.api_key.client.delete_api_key = mock.MagicMock(side_effect=BotoCoreError)
+    self.api_key.process_request()
+
+    self.api_key.client.delete_api_key.assert_called_once_with(apiKey='found')
+    self.api_key.module.fail_json.assert_called_once_with(
+      msg='Error when deleting api_key via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value=None)
+  def test_process_request_skips_delete_when_api_key_not_found(self, m):
+    self.api_key.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.api_key.process_request()
+
+    self.assertEqual(0, self.api_key.client.delete_api_key.call_count)
+
 
   def test_define_argument_spec(self):
     result = ApiGwApiKey._define_module_argument_spec()
