@@ -64,7 +64,8 @@ class TestApiGwBasePathMapping(unittest.TestCase):
     ApiGwBasePathMapping(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
 
-  def test_process_request_calls_get_base_path_mappings_and_stores_result_when_invoked(self):
+  @patch.object(ApiGwBasePathMapping, '_update_base_path_mapping', return_value=(None, None))
+  def test_process_request_calls_get_base_path_mappings_and_stores_result_when_invoked(self, m):
     resp = {
       'items': [
         {'basePath': 'not a match', 'restApiId': 'rest_api_id', 'stage': 'whatever'},
@@ -219,6 +220,69 @@ class TestApiGwBasePathMapping(unittest.TestCase):
     self.assertEqual(0, self.bpm.client.create_base_path_mapping.call_count)
     self.bpm.module.exit_json.assert_called_once_with(changed=True, base_path_mapping=None)
 
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping')
+  def test_process_request_calls_update_base_path_mapping_when_state_present_and_base_path_mapping_changed(self, m):
+    m.return_value = {
+      'basePath': 'test_base_path',
+      'stage': 'original stage',
+      'restApiId': 'ab12345',
+    }
+
+    expected_patches = [
+      {'op': 'replace', 'path': '/stage', 'value': 'test_stage'},
+    ]
+
+    self.bpm.process_request()
+
+    self.bpm.client.update_base_path_mapping.assert_called_once_with(
+      domainName='testify',
+      basePath='test_base_path',
+      patchOperations=expected_patches
+    )
+
+  @patch('library.apigw_base_path_mapping.ApiGwBasePathMapping._create_patches', return_value=[])
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value={'something': 'here'})
+  def test_process_request_skips_update_base_path_mapping_and_replies_false_when_no_changes(self, m, mcp):
+    self.bpm.process_request()
+
+    self.assertEqual(0, self.bpm.client.update_method.call_count)
+    self.bpm.module.exit_json.assert_called_once_with(changed=False, base_path_mapping={'something': 'here'})
+
+  @patch('library.apigw_base_path_mapping.ApiGwBasePathMapping._create_patches', return_value=['patches!'])
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value={'id': 'hi'})
+  def test_process_request_calls_fail_json_when_update_base_path_mapping_raises_exception(self, m, mcp):
+    self.bpm.client.update_base_path_mapping = mock.MagicMock(side_effect=BotoCoreError())
+    self.bpm.process_request()
+
+    self.bpm.client.update_base_path_mapping.assert_called_once_with(
+      domainName='testify',
+      basePath='test_base_path',
+      patchOperations=['patches!']
+    )
+    self.bpm.module.fail_json.assert_called_once_with(
+      msg='Error when updating base_path_mapping via boto3: An unspecified error occurred'
+    )
+
+  @patch('library.apigw_base_path_mapping.ApiGwBasePathMapping._create_patches', return_value=['patches!'])
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', side_effect=[{'id': 'hi'}, 'second call'])
+  def test_process_request_returns_result_of_find_when_update_is_successful(self, m, mcp):
+    self.bpm.process_request()
+
+    self.bpm.client.update_base_path_mapping.assert_called_once_with(
+      domainName='testify',
+      basePath='test_base_path',
+      patchOperations=['patches!']
+    )
+    self.bpm.module.exit_json.assert_called_once_with(changed=True, base_path_mapping='second call')
+
+  @patch('library.apigw_base_path_mapping.ApiGwBasePathMapping._create_patches', return_value=['patches!'])
+  @patch.object(ApiGwBasePathMapping, '_retrieve_base_path_mapping', return_value={'something': 'here'})
+  def test_process_request_skips_update_base_path_mapping_and_replies_true_when_check_mode(self, m, mcp):
+    self.bpm.module.check_mode = True
+    self.bpm.process_request()
+
+    self.assertEqual(0, self.bpm.client.update_method.call_count)
+    self.bpm.module.exit_json.assert_called_once_with(changed=True, base_path_mapping={'something': 'here'})
 
   def test_define_argument_spec(self):
     result = ApiGwBasePathMapping._define_module_argument_spec()

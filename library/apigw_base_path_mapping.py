@@ -153,6 +153,40 @@ class ApiGwBasePathMapping:
 
     return (changed, bpm)
 
+  @staticmethod
+  def _create_patches(params, me):
+    patches = []
+
+    stage = params.get('stage', '')
+    if stage != '' and stage is not None:
+      patches.append({'op': 'replace', 'path': '/stage', 'value': stage})
+
+    return patches
+
+  def _update_base_path_mapping(self):
+    """
+    Create base_path_mapping from provided args
+    :return: True, result from create_base_path_mapping
+    """
+    bpm = self.me
+    changed = False
+
+    try:
+      patches = ApiGwBasePathMapping._create_patches(self.module.params, self.me)
+      if patches:
+        changed = True
+
+        if not self.module.check_mode:
+          self.client.update_base_path_mapping(
+            domainName=self.module.params['name'],
+            basePath=self.module.params['base_path'],
+            patchOperations=patches
+          )
+          bpm = self._retrieve_base_path_mapping()
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when updating base_path_mapping via boto3: {}".format(e))
+
+    return (changed, bpm)
 
   def process_request(self):
     """
@@ -168,6 +202,8 @@ class ApiGwBasePathMapping:
     elif self.module.params.get('state', 'present') == 'present':
       if self.me is None:
         (changed, bpm) = self._create_base_path_mapping()
+      else:
+        (changed, bpm) = self._update_base_path_mapping()
 
     self.module.exit_json(changed=changed, base_path_mapping=bpm)
 
