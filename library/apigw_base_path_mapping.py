@@ -162,7 +162,7 @@ class ApiGwBasePathMapping:
     patches = []
 
     stage = params.get('stage', '')
-    if stage != '' and stage is not None:
+    if stage != '' and stage is not None and stage != me['stage']:
       patches.append({'op': 'replace', 'path': '/stage', 'value': stage})
 
     return patches
