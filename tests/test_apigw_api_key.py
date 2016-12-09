@@ -22,9 +22,10 @@ class TestApiGwApiKey(unittest.TestCase):
     self.api_key.client = mock.MagicMock()
     self.api_key.module.params = {
       'name': 'testify',
-      'rest_api_id': 'rest_id',
-      'base_path': 'test_base_path',
-      'stage': 'test_stage',
+      'description': 'test_description',
+      'value': 'test_value',
+      'generate_distinct_id': False,
+      'enabled': True,
       'state': 'present',
     }
     reload(apigw_api_key)
@@ -63,6 +64,45 @@ class TestApiGwApiKey(unittest.TestCase):
   def test_boto3_client_properly_instantiated(self, mock_boto):
     ApiGwApiKey(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
+
+  def test_process_request_calls_get_api_keys_and_stores_result_when_invoked(self):
+    resp = {
+      'items': [
+        {'name': 'not a match', 'id': 'rest_api_id'},
+        {'name': 'testify', 'id': 'rest_api_id'},
+      ],
+    }
+    self.api_key.client.get_api_keys = mock.MagicMock(return_value=resp)
+
+    self.api_key.process_request()
+
+    self.assertEqual(resp['items'][1], self.api_key.me)
+    self.api_key.client.get_api_keys.assert_called_once_with(nameQuery='testify', includeValues=True)
+
+  def test_process_request_stores_None_result_when_not_found_in_get_api_keys_result(self):
+    resp = {
+      'items': [
+        {'name': 'not a match', 'id': 'rest_api_id'},
+        {'name': 'also not a match', 'id': 'rest_api_id'},
+      ],
+    }
+    self.api_key.client.get_api_keys = mock.MagicMock(return_value=resp)
+
+    self.api_key.process_request()
+
+    self.assertEqual(None, self.api_key.me)
+    self.api_key.client.get_api_keys.assert_called_once_with(nameQuery='testify', includeValues=True)
+
+  def test_process_request_calls_fail_json_when_get_api_keys_raises_exception(self):
+    self.api_key.client.get_api_keys = mock.MagicMock(side_effect=BotoCoreError())
+
+    self.api_key.process_request()
+
+    self.api_key.client.get_api_keys.assert_called_once_with(nameQuery='testify', includeValues=True)
+    self.api_key.module.fail_json.assert_called_once_with(
+      msg='Error when getting api_keys from boto3: An unspecified error occurred'
+    )
+
 
   def test_define_argument_spec(self):
     result = ApiGwApiKey._define_module_argument_spec()
