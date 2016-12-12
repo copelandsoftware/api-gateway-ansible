@@ -166,7 +166,12 @@ class ApiGwApiKey:
     for param in ['enabled', 'description']:
       ans_value = params.get(param, None)
       if ans_value is not None and (param not in me or str(ans_value) != str(me[param])):
-        patches.append({'op': 'replace', 'path': "/{}".format(param), 'value': str(ans_value)})
+        # More special snowflake logic because boto removes description
+        # from get results if the key is set to empty string
+        if param == 'description' and ans_value == '' and param not in me:
+          pass
+        else:
+          patches.append({'op': 'replace', 'path': "/{}".format(param), 'value': str(ans_value)})
 
     return patches
 
