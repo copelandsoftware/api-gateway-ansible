@@ -174,7 +174,6 @@ class TestApiGwApiKey(unittest.TestCase):
                      name=dict(required=True),
                      description=dict(required=False),
                      value=dict(required=False),
-                     customer_id=dict(required=False),
                      enabled=dict(required=False, type='bool', default=False),
                      generate_distinct_id=dict(required=False, type='bool', default=False),
                      state=dict(default='present', choices=['present', 'absent']),

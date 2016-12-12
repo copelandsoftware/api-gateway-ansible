@@ -43,11 +43,6 @@ options:
     type: bool
     default: False
     required: False
-  customer_id:
-    description: AWS Marketplace customer identifier when integrating with AWS SaaS marketplace
-    type: string
-    default: None
-    required: False
   state:
     description: Should api_key exist or not
     choices: ['present', 'absent']
@@ -100,7 +95,6 @@ class ApiGwApiKey:
     return dict( name=dict(required=True),
                  description=dict(required=False),
                  value=dict(required=False),
-                 customer_id=dict(required=False),
                  enabled=dict(required=False, type='bool', default=False),
                  generate_distinct_id=dict(required=False, type='bool', default=False),
                  state=dict(default='present', choices=['present', 'absent']),
