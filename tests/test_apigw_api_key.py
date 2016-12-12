@@ -166,6 +166,57 @@ class TestApiGwApiKey(unittest.TestCase):
 
     self.assertEqual(0, self.api_key.client.delete_api_key.call_count)
 
+  @patch.object(ApiGwApiKey, '_create_api_key', return_value=('veins', 'clogging'))
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value=None)
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_create(self, mra, mca):
+    self.api_key.process_request()
+
+    self.api_key.module.exit_json.assert_called_once_with(changed='veins', api_key='clogging')
+
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value=None)
+  def test_process_request_returns_create_api_key_result_when_create_succeeds(self, m):
+    self.api_key.client.create_api_key = mock.MagicMock(return_value='woot')
+    self.api_key.process_request()
+
+    self.api_key.module.exit_json.assert_called_once_with(changed=True, api_key='woot')
+
+
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value=None)
+  def test_process_request_calls_create_api_key_when_state_present_and_api_key_not_found(self, m):
+    self.api_key.process_request()
+
+    self.api_key.client.create_api_key.assert_called_once_with(
+      name='testify',
+      description='test_description',
+      enabled=True,
+      generateDistinctId=False,
+      value='test_value',
+    )
+
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value=None)
+  def test_process_request_calls_fail_json_when_create_api_key_raises_exception(self, m):
+    self.api_key.client.create_api_key = mock.MagicMock(side_effect=BotoCoreError())
+    self.api_key.process_request()
+
+    self.api_key.client.create_api_key.assert_called_once_with(
+      name='testify',
+      description='test_description',
+      enabled=True,
+      generateDistinctId=False,
+      value='test_value',
+    )
+    self.api_key.module.fail_json.assert_called_once_with(
+      msg='Error when creating api_key via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value=None)
+  def test_process_request_skips_create_call_and_returns_changed_True_when_check_mode(self, m):
+    self.api_key.module.check_mode = True
+    self.api_key.process_request()
+
+    self.assertEqual(0, self.api_key.client.create_api_key.call_count)
+    self.api_key.module.exit_json.assert_called_once_with(changed=True, api_key=None)
+
 
   def test_define_argument_spec(self):
     result = ApiGwApiKey._define_module_argument_spec()

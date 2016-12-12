@@ -129,6 +129,33 @@ class ApiGwApiKey:
     except BotoCoreError as e:
       self.module.fail_json(msg="Error when deleting api_key via boto3: {}".format(e))
 
+  def _create_api_key(self):
+    """
+    Create api_key from provided args
+    :return: True, result from create_api_key
+    """
+    api_key = None
+    changed = False
+
+    try:
+      changed = True
+      if not self.module.check_mode:
+        args = dict(
+          name=self.module.params['name'],
+          enabled=self.module.params.get('enabled', False),
+          generateDistinctId=self.module.params.get('generate_distinct_id', False),
+        )
+
+        for opt_field in ['description', 'value']:
+          if self.module.params.get(opt_field, None) not in [None, '']:
+            args[opt_field] = self.module.params[opt_field]
+
+        api_key = self.client.create_api_key(**args)
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when creating api_key via boto3: {}".format(e))
+
+    return (changed, api_key)
+
 
   def process_request(self):
     """
@@ -142,6 +169,9 @@ class ApiGwApiKey:
 
     if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
       changed = self._delete_api_key()
+    elif self.module.params.get('state', 'present') == 'present':
+      if self.me is None:
+        (changed, api_key) = self._create_api_key()
 
     self.module.exit_json(changed=changed, api_key=api_key)
 
