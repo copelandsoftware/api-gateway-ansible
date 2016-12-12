@@ -10,6 +10,9 @@
 # apigw_api_key
 #    Manage creation, update, and removal of API Gateway ApiKey resources
 #
+# NOTE: While it is possible via the boto api to update the ApiKey's name,
+#       this module does not support this functionality since it searches
+#       for the ApiKey's id by its name.
 
 ## TODO: Add an appropriate license statement
 
@@ -156,6 +159,40 @@ class ApiGwApiKey:
 
     return (changed, api_key)
 
+  @staticmethod
+  def _create_patches(params, me):
+    patches = []
+
+    for param in ['enabled', 'description']:
+      ans_value = params.get(param, None)
+      if ans_value is not None and (param not in me or str(ans_value) != str(me[param])):
+        patches.append({'op': 'replace', 'path': "/{}".format(param), 'value': str(ans_value)})
+
+    return patches
+
+  def _update_api_key(self):
+    """
+    Create api_key from provided args
+    :return: True, result from create_api_key
+    """
+    api_key = self.me
+    changed = False
+
+    try:
+      patches = ApiGwApiKey._create_patches(self.module.params, self.me)
+      if patches:
+        changed = True
+
+        if not self.module.check_mode:
+          self.client.update_api_key(
+            apiKey=self.me['id'],
+            patchOperations=patches
+          )
+          api_key = self._retrieve_api_key()
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when updating api_key via boto3: {}".format(e))
+
+    return (changed, api_key)
 
   def process_request(self):
     """
@@ -172,6 +209,8 @@ class ApiGwApiKey:
     elif self.module.params.get('state', 'present') == 'present':
       if self.me is None:
         (changed, api_key) = self._create_api_key()
+      else:
+        (changed, api_key) = self._update_api_key()
 
     self.module.exit_json(changed=changed, api_key=api_key)
 
