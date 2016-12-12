@@ -299,7 +299,7 @@ class TestApiGwAuthorizer(unittest.TestCase):
   def test_process_request_skips_update_authorizer_and_replies_false_when_no_changes(self, m, mcp):
     self.authorizer.process_request()
 
-    self.assertEqual(0, self.authorizer.client.update_method.call_count)
+    self.assertEqual(0, self.authorizer.client.update_authorizer.call_count)
     self.authorizer.module.exit_json.assert_called_once_with(changed=False, authorizer={'something': 'here'})
 
   @patch('library.apigw_authorizer.ApiGwAuthorizer._create_patches', return_value=['patches!'])
@@ -335,7 +335,7 @@ class TestApiGwAuthorizer(unittest.TestCase):
     self.authorizer.module.check_mode = True
     self.authorizer.process_request()
 
-    self.assertEqual(0, self.authorizer.client.update_method.call_count)
+    self.assertEqual(0, self.authorizer.client.update_authorizer.call_count)
     self.authorizer.module.exit_json.assert_called_once_with(changed=True, authorizer={'something': 'here'})
 
   def test_define_argument_spec(self):

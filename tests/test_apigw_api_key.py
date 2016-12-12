@@ -239,12 +239,30 @@ class TestApiGwApiKey(unittest.TestCase):
     )
     self.assertEqual(len(expected_patches), len(self.api_key.client.update_api_key.call_args[1]['patchOperations']))
 
+  @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value={'id': 'hi'})
+  def test_process_request_skips_update_when_description_empty_and_not_present_in_boto_results(self, m):
+    m.return_value = {
+      'name': 'testify',
+      'enabled': True,
+      'id': 'ab12345',
+    }
+
+    self.api_key.module.params = {
+      'name': 'testify',
+      'description': '',
+      'state': 'present'
+    }
+
+    self.api_key.process_request()
+
+    self.assertEqual(0, self.api_key.client.update_api_key.call_count)
+
   @patch('library.apigw_api_key.ApiGwApiKey._create_patches', return_value=[])
   @patch.object(ApiGwApiKey, '_retrieve_api_key', return_value={'something': 'here'})
   def test_process_request_skips_update_api_key_and_replies_false_when_no_changes(self, m, mcp):
     self.api_key.process_request()
 
-    self.assertEqual(0, self.api_key.client.update_method.call_count)
+    self.assertEqual(0, self.api_key.client.update_api_key.call_count)
     self.api_key.module.exit_json.assert_called_once_with(changed=False, api_key={'something': 'here'})
 
   @patch('library.apigw_api_key.ApiGwApiKey._create_patches', return_value=['patches!'])
@@ -278,7 +296,7 @@ class TestApiGwApiKey(unittest.TestCase):
     self.api_key.module.check_mode = True
     self.api_key.process_request()
 
-    self.assertEqual(0, self.api_key.client.update_method.call_count)
+    self.assertEqual(0, self.api_key.client.update_api_key.call_count)
     self.api_key.module.exit_json.assert_called_once_with(changed=True, api_key={'something': 'here'})
 
   def test_define_argument_spec(self):
