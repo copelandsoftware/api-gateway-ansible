@@ -255,7 +255,7 @@ class TestApiGwBasePathMapping(unittest.TestCase):
   def test_process_request_skips_update_base_path_mapping_and_replies_false_when_no_changes(self, m, mcp):
     self.bpm.process_request()
 
-    self.assertEqual(0, self.bpm.client.update_method.call_count)
+    self.assertEqual(0, self.bpm.client.update_base_path_mapping.call_count)
     self.bpm.module.exit_json.assert_called_once_with(changed=False, base_path_mapping={'something': 'here'})
 
   @patch('library.apigw_base_path_mapping.ApiGwBasePathMapping._create_patches', return_value=['patches!'])
@@ -291,7 +291,7 @@ class TestApiGwBasePathMapping(unittest.TestCase):
     self.bpm.module.check_mode = True
     self.bpm.process_request()
 
-    self.assertEqual(0, self.bpm.client.update_method.call_count)
+    self.assertEqual(0, self.bpm.client.update_base_path_mapping.call_count)
     self.bpm.module.exit_json.assert_called_once_with(changed=True, base_path_mapping={'something': 'here'})
 
   def test_define_argument_spec(self):

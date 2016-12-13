@@ -236,7 +236,7 @@ class TestApiGwStage(unittest.TestCase):
     self.assertEqual(len(expected_patch_ops), len(self.stage.client.update_stage.call_args[1]['patchOperations']))
     self.assertItemsEqual(expected_patch_ops, self.stage.client.update_stage.call_args[1]['patchOperations'])
 
-  def test_process_request_skips_update_method_call_when_no_differences_found(self):
+  def test_process_request_skips_update_stage_call_when_no_differences_found(self):
     self.stage.module.params = {
       'rest_api_id': 'bob',
       'name': 'testme',
@@ -254,7 +254,7 @@ class TestApiGwStage(unittest.TestCase):
     self.assertEqual(0, self.stage.client.update_stage.call_count)
     self.stage.module.exit_json.assert_called_once_with(changed=False, stage=None)
 
-  def test_process_request_skips_update_method_call_when_check_mode_set(self):
+  def test_process_request_skips_update_stage_call_when_check_mode_set(self):
     self.stage.module.params = {
       'rest_api_id': 'bob',
       'name': 'testme',
