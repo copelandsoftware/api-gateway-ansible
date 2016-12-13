@@ -62,11 +62,47 @@ notes:
 '''
 
 EXAMPLES = '''
-TBD
+---
+- hosts: localhost
+  gather_facts: False
+  tasks:
+  - name: api key creation
+    apigw_api_key:
+      name: testkey5000
+      description: 'this is an awesome test'
+      enabled: True
+      value: 'notthegreatestkeyintheworld:justatribute'
+      state: present
+    register: apikey
+
+  - debug: var=apikey
 '''
 
 RETURN = '''
-TBD
+{
+  "apikey": {
+    "api_key": {
+      "ResponseMetadata": {
+        "HTTPHeaders": {
+          "content-length": "216",
+          "content-type": "application/json",
+          "date": "Tue, 13 Dec 2016 03:45:35 GMT",
+        },
+        "HTTPStatusCode": 201,
+        "RetryAttempts": 0
+      },
+      "createdDate": "2016-12-12T21:45:35-06:00",
+      "description": "this is an awesome test",
+      "enabled": true,
+      "id": "24601abcde",
+      "lastUpdatedDate": "2016-12-12T21:45:35-06:00",
+      "name": "testkey5000",
+      "stageKeys": [],
+      "value": "notthegreatestkeyintheworld:justatribute"
+    },
+    "changed": true
+  }
+}
 '''
 
 __version__ = '${version}'
