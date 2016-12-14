@@ -169,6 +169,55 @@ class TestApiGwUsagePlan(unittest.TestCase):
 
     self.assertEqual(0, self.usage_plan.client.delete_usage_plan.call_count)
 
+  @patch.object(ApiGwUsagePlan, '_create_usage_plan', return_value=('eye', 'on the sandwich'))
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value=None)
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_create(self, mra, mca):
+    self.usage_plan.process_request()
+
+    self.usage_plan.module.exit_json.assert_called_once_with(changed='eye', usage_plan='on the sandwich')
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value=None)
+  def test_process_request_returns_create_usage_plan_result_when_create_succeeds(self, m):
+    self.usage_plan.client.create_usage_plan = mock.MagicMock(return_value='woot')
+    self.usage_plan.process_request()
+
+    self.usage_plan.module.exit_json.assert_called_once_with(changed=True, usage_plan='woot')
+
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value=None)
+  def test_process_request_calls_create_usage_plan_when_state_present_and_usage_plan_not_found(self, m):
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.create_usage_plan.assert_called_once_with(
+      name='testify',
+      description='test_description',
+      apiStages=[{'apiId': 'id1', 'stage': 'stage1'}],
+      throttle={'burstLimit': 111, 'rateLimit': 222},
+      quota={'limit': 333, 'offset': 444, 'period': 'WEEK'},
+    )
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value=None)
+  def test_process_request_calls_fail_json_when_create_usage_plan_raises_exception(self, m):
+    self.usage_plan.module.params = {
+      'name': 'testify',
+      'state': 'present',
+    }
+    self.usage_plan.client.create_usage_plan = mock.MagicMock(side_effect=BotoCoreError())
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.create_usage_plan.assert_called_once_with(name='testify')
+    self.usage_plan.module.fail_json.assert_called_once_with(
+      msg='Error when creating usage_plan via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value=None)
+  def test_process_request_skips_create_call_and_returns_changed_True_when_check_mode(self, m):
+    self.usage_plan.module.check_mode = True
+    self.usage_plan.process_request()
+
+    self.assertEqual(0, self.usage_plan.client.create_usage_plan.call_count)
+    self.usage_plan.module.exit_json.assert_called_once_with(changed=True, usage_plan=None)
+
   def test_define_argument_spec(self):
     result = ApiGwUsagePlan._define_module_argument_spec()
     self.assertIsInstance(result, dict)

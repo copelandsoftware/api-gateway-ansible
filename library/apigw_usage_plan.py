@@ -117,6 +117,13 @@ class ApiGwUsagePlan:
     if (not HAS_BOTO3):
       self.module.fail_json(msg="boto and boto3 are required for this module")
     self.client = boto3.client('apigateway')
+    self.param_map = {
+      'throttle_burst_limit': 'throttle/burstLimit',
+      'throttle_rate_limit': 'throttle/rateLimit',
+      'quota_offset': 'quota/offset',
+      'quota_limit': 'quota/limit',
+      'quota_period': 'quota/period',
+    }
 
   @staticmethod
   def _define_module_argument_spec():
@@ -170,6 +177,52 @@ class ApiGwUsagePlan:
     except BotoCoreError as e:
       self.module.fail_json(msg="Error when deleting usage_plan via boto3: {}".format(e))
 
+  @staticmethod
+  def _is_default_value(param_name, param_value):
+    defaults = ApiGwUsagePlan._define_module_argument_spec()
+
+    if defaults[param_name].get('type', 'string') in ['int', 'float']:
+      return param_value < 0
+    else:
+      return param_value in [None, '']
+
+  def _create_usage_plan(self):
+    """
+    Create usage_plan from provided args
+    :return: True, result from create_usage_plan
+    """
+    usage_plan = None
+    changed = False
+
+    try:
+      changed = True
+      if not self.module.check_mode:
+        args = dict(name=self.module.params['name'])
+
+        for f in ['description','throttle_burst_limit','throttle_rate_limit','quota_limit','quota_period','quota_offset']:
+          if not ApiGwUsagePlan._is_default_value(f, self.module.params.get(f, None)):
+            boto_param = self.param_map.get(f, f)
+            if '/' in boto_param:
+              (p1, p2) = boto_param.split('/')
+              if p1 not in args:
+                args[p1] = {}
+              args[p1].update({p2: self.module.params[f]})
+            else:
+              args[boto_param] = self.module.params[f]
+
+        for stage in self.module.params.get('api_stages', []):
+          if 'apiStages' not in args:
+            args['apiStages'] = []
+          args['apiStages'].append(
+            {'apiId': stage.get('rest_api_id'), 'stage': stage.get('stage')}
+          )
+
+        usage_plan = self.client.create_usage_plan(**args)
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when creating usage_plan via boto3: {}".format(e))
+
+    return (changed, usage_plan)
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -182,6 +235,9 @@ class ApiGwUsagePlan:
 
     if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
       changed = self._delete_usage_plan()
+    elif self.module.params.get('state', 'present') == 'present':
+      if self.me is None:
+        (changed, usage_plan) = self._create_usage_plan()
 
     self.module.exit_json(changed=changed, usage_plan=usage_plan)
 
