@@ -141,12 +141,33 @@ class ApiGwUsagePlan:
                  state=dict(default='present', choices=['present', 'absent']),
     )
 
+  def _retrieve_usage_plan(self):
+    """
+    Retrieve all usage_plans in the account and match them against the provided name
+    :return: Result matching the provided api name or an empty hash
+    """
+    resp = None
+    try:
+      get_resp = self.client.get_usage_plans()
+
+      for item in get_resp.get('items', []):
+        if item['name'] == self.module.params.get('name'):
+          resp = item
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when getting usage_plans from boto3: {}".format(e))
+
+    return resp
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
     :return: Returns either fail_json or exit_json
     """
-    raise NotImplementedError
+
+    usage_plan = None
+    changed = False
+    self.me = self._retrieve_usage_plan()
+
 
 def main():
     """

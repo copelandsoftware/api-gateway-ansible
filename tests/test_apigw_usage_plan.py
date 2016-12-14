@@ -23,9 +23,12 @@ class TestApiGwUsagePlan(unittest.TestCase):
     self.usage_plan.module.params = {
       'name': 'testify',
       'description': 'test_description',
-      'value': 'test_value',
-      'generate_distinct_id': False,
-      'enabled': True,
+      'api_stages': [{'rest_api_id': 'id1', 'stage': 'stage1'}],
+      'throttle_burst_limit': 111,
+      'throttle_rate_limit': 222.0,
+      'quota_limit': 333,
+      'quota_offset': 444,
+      'quota_period': 'WEEK',
       'state': 'present',
     }
     reload(apigw_usage_plan)
@@ -64,6 +67,44 @@ class TestApiGwUsagePlan(unittest.TestCase):
   def test_boto3_client_properly_instantiated(self, mock_boto):
     ApiGwUsagePlan(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
+
+  def test_process_request_calls_get_usage_plans_and_stores_result_when_invoked(self):
+    resp = {
+      'items': [
+        {'name': 'not a match', 'id': 'usage_plan_id'},
+        {'name': 'testify', 'id': 'usage_plan_id'},
+      ],
+    }
+    self.usage_plan.client.get_usage_plans = mock.MagicMock(return_value=resp)
+
+    self.usage_plan.process_request()
+
+    self.assertEqual(resp['items'][1], self.usage_plan.me)
+    self.usage_plan.client.get_usage_plans.assert_called_once_with()
+
+  def test_process_request_stores_None_result_when_not_found_in_get_usage_plans_result(self):
+    resp = {
+      'items': [
+        {'name': 'not a match', 'id': 'usage_plan_id'},
+        {'name': 'also not a match', 'id': 'usage_plan_id'},
+      ],
+    }
+    self.usage_plan.client.get_usage_plans = mock.MagicMock(return_value=resp)
+
+    self.usage_plan.process_request()
+
+    self.assertEqual(None, self.usage_plan.me)
+    self.usage_plan.client.get_usage_plans.assert_called_once_with()
+
+  def test_process_request_calls_fail_json_when_get_usage_plans_raises_exception(self):
+    self.usage_plan.client.get_usage_plans = mock.MagicMock(side_effect=BotoCoreError())
+
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.get_usage_plans.assert_called_once_with()
+    self.usage_plan.module.fail_json.assert_called_once_with(
+      msg='Error when getting usage_plans from boto3: An unspecified error occurred'
+    )
 
   def test_define_argument_spec(self):
     result = ApiGwUsagePlan._define_module_argument_spec()
