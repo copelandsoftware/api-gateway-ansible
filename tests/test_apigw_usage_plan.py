@@ -106,6 +106,69 @@ class TestApiGwUsagePlan(unittest.TestCase):
       msg='Error when getting usage_plans from boto3: An unspecified error occurred'
     )
 
+  @patch.object(ApiGwUsagePlan, '_delete_usage_plan', return_value='Egah!')
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'id': 'found'})
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_delete(self, mr, md):
+    self.usage_plan.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.usage_plan.process_request()
+
+    self.usage_plan.module.exit_json.assert_called_once_with(changed='Egah!', usage_plan=None)
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'id': 'found'})
+  def test_process_request_calls_delete_usage_plan_when_state_absent_and_usage_plan_found(self, m):
+    self.usage_plan.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.delete_usage_plan.assert_called_once_with(usagePlanId='found')
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'id': 'found'})
+  def test_process_request_skips_delete_and_calls_exit_json_with_true_when_check_mode_set_and_auth_found(self, m):
+    self.usage_plan.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+    self.usage_plan.module.check_mode = True
+
+    self.usage_plan.process_request()
+
+    self.assertEqual(0, self.usage_plan.client.delete_usage_plan.call_count)
+    self.usage_plan.module.exit_json.assert_called_once_with(changed=True, usage_plan=None)
+
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'id': 'found'})
+  def test_process_request_calls_fail_json_when_delete_usage_plan_raises_error(self, m):
+    self.usage_plan.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.usage_plan.client.delete_usage_plan = mock.MagicMock(side_effect=BotoCoreError)
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.delete_usage_plan.assert_called_once_with(usagePlanId='found')
+    self.usage_plan.module.fail_json.assert_called_once_with(
+      msg='Error when deleting usage_plan via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value=None)
+  def test_process_request_skips_delete_when_usage_plan_not_found(self, m):
+    self.usage_plan.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.usage_plan.process_request()
+
+    self.assertEqual(0, self.usage_plan.client.delete_usage_plan.call_count)
+
   def test_define_argument_spec(self):
     result = ApiGwUsagePlan._define_module_argument_spec()
     self.assertIsInstance(result, dict)
