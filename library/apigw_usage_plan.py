@@ -180,7 +180,7 @@ class ApiGwUsagePlan:
     :return: Dictionary defining module arguments
     """
     return dict( name=dict(required=True),
-                 description=dict(required=False),
+                 description=dict(required=False, default=''),
                  api_stages=dict(
                    type='list',
                    required=False,
@@ -246,7 +246,7 @@ class ApiGwUsagePlan:
     if defaults[param_name].get('type', 'string') in ['int', 'float']:
       return param_value < 0
     else:
-      return param_value is None
+      return param_value in [None, '']
 
   def _create_usage_plan(self):
     """
@@ -315,7 +315,9 @@ class ApiGwUsagePlan:
             patches.append({'op': 'replace', 'path': "/{}".format(boto_param), 'value': str(params[p])})
       else:
         # must be description
-        if (p not in me and params.get(p, '') != '') or me[p] != params.get(p, ''):
+        if p not in me and params.get(p, '') in [None, '']:
+          pass
+        elif p in me and me[p] != params.get(p, ''):
           patches.append({'op': 'replace', 'path': "/{}".format(boto_param), 'value': str(params.get(p, ''))})
 
     # add handling for api_stages

@@ -392,7 +392,7 @@ class TestApiGwUsagePlan(unittest.TestCase):
     self.assertIsInstance(result, dict)
     self.assertEqual(result, dict(
                      name=dict(required=True),
-                     description=dict(required=False),
+                     description=dict(required=False, default=''),
                      api_stages=dict(
                        type='list',
                        required=False,
