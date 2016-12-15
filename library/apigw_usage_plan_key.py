@@ -53,9 +53,37 @@ EXAMPLES = '''
 - hosts: localhost
   gather_facts: False
   tasks:
+  - name: usage plan creation
+    apigw_usage_plan_key:
+      usage_plan_id: 12345abcde
+      api_key_id: zyxw9876
+      key_type: API_KEY
+      state: present
+    register: plankey
+
+  - debug: var=plankey
 '''
 
 RETURN = '''
+{
+  "plankey": {
+    "changed": true,
+    "usage_plan_key": {
+      "ResponseMetadata": {
+        "HTTPHeaders": {
+          "content-length": "58",
+          "content-type": "application/json",
+          "date": "Thu, 15 Dec 2016 18:03:22 GMT",
+        },
+        "HTTPStatusCode": 201,
+        "RetryAttempts": 0
+      },
+      "id": "abcdefghhi",
+      "name": "testkey5000",
+      "type": "API_KEY"
+    }
+  }
+}
 '''
 
 __version__ = '${version}'
