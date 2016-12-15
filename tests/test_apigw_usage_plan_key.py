@@ -63,6 +63,44 @@ class TestApiGwUsagePlanKey(unittest.TestCase):
     ApiGwUsagePlanKey(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
 
+  def test_process_request_calls_get_usage_plan_keys_and_stores_result_when_invoked(self):
+    resp = {
+      'items': [
+        {'id': 'wrong_id'},
+        {'id': 'akid'},
+      ],
+    }
+    self.usage_plan_key.client.get_usage_plan_keys = mock.MagicMock(return_value=resp)
+
+    self.usage_plan_key.process_request()
+
+    self.assertEqual(resp['items'][1], self.usage_plan_key.me)
+    self.usage_plan_key.client.get_usage_plan_keys.assert_called_once_with(usagePlanId='upid')
+
+  def test_process_request_stores_None_result_when_not_found_in_get_usage_plan_keys_result(self):
+    resp = {
+      'items': [
+        {'id': 'wrong id'},
+        {'id': 'wronger id'},
+      ],
+    }
+    self.usage_plan_key.client.get_usage_plan_keys = mock.MagicMock(return_value=resp)
+
+    self.usage_plan_key.process_request()
+
+    self.assertEqual(None, self.usage_plan_key.me)
+    self.usage_plan_key.client.get_usage_plan_keys.assert_called_once_with(usagePlanId='upid')
+
+  def test_process_request_calls_fail_json_when_get_usage_plan_keys_raises_exception(self):
+    self.usage_plan_key.client.get_usage_plan_keys = mock.MagicMock(side_effect=BotoCoreError())
+
+    self.usage_plan_key.process_request()
+
+    self.usage_plan_key.client.get_usage_plan_keys.assert_called_once_with(usagePlanId='upid')
+    self.usage_plan_key.module.fail_json.assert_called_once_with(
+      msg='Error when getting usage_plan_keys from boto3: An unspecified error occurred'
+    )
+
   def test_define_argument_spec(self):
     result = ApiGwUsagePlanKey._define_module_argument_spec()
     self.assertIsInstance(result, dict)
