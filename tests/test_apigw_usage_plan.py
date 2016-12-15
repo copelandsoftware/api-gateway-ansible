@@ -68,7 +68,8 @@ class TestApiGwUsagePlan(unittest.TestCase):
     ApiGwUsagePlan(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
 
-  def test_process_request_calls_get_usage_plans_and_stores_result_when_invoked(self):
+  @patch.object(ApiGwUsagePlan, '_update_usage_plan', return_value=('hi', 'mom'))
+  def test_process_request_calls_get_usage_plans_and_stores_result_when_invoked(self, m):
     resp = {
       'items': [
         {'name': 'not a match', 'id': 'usage_plan_id'},
@@ -217,6 +218,148 @@ class TestApiGwUsagePlan(unittest.TestCase):
 
     self.assertEqual(0, self.usage_plan.client.create_usage_plan.call_count)
     self.usage_plan.module.exit_json.assert_called_once_with(changed=True, usage_plan=None)
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'id': 'hi'})
+  def test_process_request_calls_update_usage_plan_for_replace_ops_when_state_present_and_usage_plan_changed(self, m):
+    m.return_value = {
+      'name': 'testify',
+      'id': 'ab12345',
+      'description': 'old and busted',
+      'apiStages': [{'apiId': 'id1', 'stage': 'stage1'}],
+      'throttle': {'burstLimit': 'old', 'rateLimit': 'old'},
+      'quota': {'limit': 'old', 'offset': 'old', 'period': 'old'},
+    }
+
+    expected_patches = [
+      {'op': 'replace', 'path': '/description', 'value': 'test_description'},
+      {'op': 'replace', 'path': '/quota/period', 'value': 'WEEK'},
+      {'op': 'replace', 'path': '/quota/offset', 'value': '444'},
+      {'op': 'replace', 'path': '/quota/limit', 'value': '333'},
+      {'op': 'replace', 'path': '/throttle/rateLimit', 'value': '222.0'},
+      {'op': 'replace', 'path': '/throttle/burstLimit', 'value': '111'},
+    ]
+
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.update_usage_plan.assert_called_once_with(
+      usagePlanId='ab12345',
+      patchOperations=mock.ANY
+    )
+    self.assertEqual(len(expected_patches), len(self.usage_plan.client.update_usage_plan.call_args[1]['patchOperations']))
+    self.assertItemsEqual(expected_patches, self.usage_plan.client.update_usage_plan.call_args[1]['patchOperations'])
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'id': 'hi'})
+  def test_process_request_calls_update_usage_plan_for_remove_ops_when_state_present_and_usage_plan_changed(self, m):
+    self.usage_plan.module.params = {
+      'name': 'testify',
+      'description': 'test_description',
+      'api_stages': [],
+      'state': 'present',
+    }
+
+    m.return_value = {
+      'name': 'testify',
+      'id': 'ab12345',
+      'description': 'test_description',
+      'apiStages': [{'apiId': 'id1', 'stage': 'stage1'},{'apiId': 'id2', 'stage': 'stage2'}],
+      'throttle': {'burstLimit': 'old', 'rateLimit': 'old'},
+      'quota': {'limit': 'old', 'offset': 'old', 'period': 'old'},
+    }
+
+    expected_patches = [
+      {'op': 'remove', 'path': '/quota'},
+      {'op': 'remove', 'path': '/throttle'},
+      {'op': 'remove', 'path': '/apiStages'},
+    ]
+
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.update_usage_plan.assert_called_once_with(
+      usagePlanId='ab12345',
+      patchOperations=mock.ANY
+    )
+    self.assertEqual(len(expected_patches), len(self.usage_plan.client.update_usage_plan.call_args[1]['patchOperations']))
+    self.assertItemsEqual(expected_patches, self.usage_plan.client.update_usage_plan.call_args[1]['patchOperations'])
+
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'id': 'hi'})
+  def test_process_request_calls_update_usage_plan_for_add_ops_when_state_present_and_usage_plan_changed(self, m):
+    self.usage_plan.module.params = {
+      'name': 'testify',
+      'api_stages': [{'rest_api_id': 'id1', 'stage': 'stage1'}],
+      'throttle_burst_limit': 111,
+      'throttle_rate_limit': 222.0,
+      'quota_limit': 333,
+      'quota_offset': 444,
+      'quota_period': 'WEEK',
+    }
+
+    m.return_value = {
+      'name': 'testify',
+      'id': 'ab12345',
+      'description': 'old and busted',
+      'apiStages': [{'apiId': 'idx', 'stage': 'stagex'}],
+    }
+
+    expected_patches = [
+      {'op': 'replace', 'path': '/description', 'value': ''},
+      {'op': 'add', 'path': '/quota/period', 'value': 'WEEK'},
+      {'op': 'add', 'path': '/quota/offset', 'value': '444'},
+      {'op': 'add', 'path': '/quota/limit', 'value': '333'},
+      {'op': 'add', 'path': '/throttle/rateLimit', 'value': '222.0'},
+      {'op': 'add', 'path': '/throttle/burstLimit', 'value': '111'},
+      {'op': 'add', 'path': '/apiStages', 'value': 'id1:stage1'},
+    ]
+
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.update_usage_plan.assert_called_once_with(
+      usagePlanId='ab12345',
+      patchOperations=mock.ANY
+    )
+    self.assertEqual(len(expected_patches), len(self.usage_plan.client.update_usage_plan.call_args[1]['patchOperations']))
+    self.assertItemsEqual(expected_patches, self.usage_plan.client.update_usage_plan.call_args[1]['patchOperations'])
+
+  @patch('library.apigw_usage_plan.ApiGwUsagePlan._create_patches', return_value=[])
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'something': 'here'})
+  def test_process_request_skips_update_usage_plan_and_replies_false_when_no_changes(self, m, mcp):
+    self.usage_plan.process_request()
+
+    self.assertEqual(0, self.usage_plan.client.update_usage_plan.call_count)
+    self.usage_plan.module.exit_json.assert_called_once_with(changed=False, usage_plan={'something': 'here'})
+
+  @patch('library.apigw_usage_plan.ApiGwUsagePlan._create_patches', return_value=['patches!'])
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'id': 'hi'})
+  def test_process_request_calls_fail_json_when_update_usage_plan_raises_exception(self, m, mcp):
+    self.usage_plan.client.update_usage_plan = mock.MagicMock(side_effect=BotoCoreError())
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.update_usage_plan.assert_called_once_with(
+      usagePlanId='hi',
+      patchOperations=['patches!']
+    )
+    self.usage_plan.module.fail_json.assert_called_once_with(
+      msg='Error when updating usage_plan via boto3: An unspecified error occurred'
+    )
+
+  @patch('library.apigw_usage_plan.ApiGwUsagePlan._create_patches', return_value=['patches!'])
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', side_effect=[{'id': 'hi'}, 'second call'])
+  def test_process_request_returns_result_of_find_when_update_is_successful(self, m, mcp):
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.update_usage_plan.assert_called_once_with(
+      usagePlanId='hi',
+      patchOperations=['patches!']
+    )
+    self.usage_plan.module.exit_json.assert_called_once_with(changed=True, usage_plan='second call')
+
+  @patch('library.apigw_usage_plan.ApiGwUsagePlan._create_patches', return_value=['patches!'])
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'something': 'here'})
+  def test_process_request_skips_update_usage_plan_and_replies_true_when_check_mode(self, m, mcp):
+    self.usage_plan.module.check_mode = True
+    self.usage_plan.process_request()
+
+    self.assertEqual(0, self.usage_plan.client.update_usage_plan.call_count)
+    self.usage_plan.module.exit_json.assert_called_once_with(changed=True, usage_plan={'something': 'here'})
 
   def test_define_argument_spec(self):
     result = ApiGwUsagePlan._define_module_argument_spec()

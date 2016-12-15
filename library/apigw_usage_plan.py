@@ -184,7 +184,7 @@ class ApiGwUsagePlan:
     if defaults[param_name].get('type', 'string') in ['int', 'float']:
       return param_value < 0
     else:
-      return param_value in [None, '']
+      return param_value is None
 
   def _create_usage_plan(self):
     """
@@ -213,13 +213,81 @@ class ApiGwUsagePlan:
         for stage in self.module.params.get('api_stages', []):
           if 'apiStages' not in args:
             args['apiStages'] = []
-          args['apiStages'].append(
-            {'apiId': stage.get('rest_api_id'), 'stage': stage.get('stage')}
-          )
+          args['apiStages'].append({'apiId': stage.get('rest_api_id'), 'stage': stage.get('stage')})
 
         usage_plan = self.client.create_usage_plan(**args)
     except BotoCoreError as e:
       self.module.fail_json(msg="Error when creating usage_plan via boto3: {}".format(e))
+
+    return (changed, usage_plan)
+
+  @staticmethod
+  def _all_defaults(ans_params, params_list):
+    is_default = False
+    for p in params_list:
+      is_default = is_default or ApiGwUsagePlan._is_default_value(p, ans_params.get(p, None))
+
+    return is_default
+
+  @staticmethod
+  def _create_patches(params, me, pmap):
+    patches = []
+
+    # delete ops
+    if 'throttle' in me and ApiGwUsagePlan._all_defaults(params, ['throttle_rate_limit','throttle_burst_limit']):
+      patches.append({'op': 'remove', 'path': "/throttle"})
+    if 'quota' in me and ApiGwUsagePlan._all_defaults(params, ['quota_limit','quota_offset','quota_period']):
+      patches.append({'op': 'remove', 'path': "/quota"})
+    if 'apiStages' in me and params.get('api_stages', []) == []:
+      patches.append({'op': 'remove', 'path': "/apiStages"})
+
+    # add/replace ops
+    for p in ['description','throttle_rate_limit','throttle_burst_limit','quota_limit','quota_offset','quota_period']:
+      boto_param = pmap.get(p, p)
+      if '/' in boto_param:
+        (parent, child) = boto_param.split('/')
+        if not ApiGwUsagePlan._is_default_value(p, params.get(p, None)):
+          if child not in me.get(parent, {}):
+            patches.append({'op': 'add', 'path': "/{}".format(boto_param), 'value': str(params[p])})
+          elif me[parent][child] != params[p]:
+            patches.append({'op': 'replace', 'path': "/{}".format(boto_param), 'value': str(params[p])})
+      else:
+        # must be description
+        if (p not in me and params.get(p, '') != '') or me[p] != params.get(p, ''):
+          patches.append({'op': 'replace', 'path': "/{}".format(boto_param), 'value': str(params.get(p, ''))})
+
+    # add handling for api_stages
+    api_stages = []
+    for stage in me.get('apiStages', []):
+      api_stages.append("{0}:{1}".format(stage['apiId'], stage['stage']))
+    for entry in params.get('api_stages', []):
+      key = "{0}:{1}".format(entry['rest_api_id'], entry['stage'])
+      if key not in api_stages:
+        patches.append({'op': 'add', 'path': '/apiStages', 'value': key})
+
+    return patches
+
+  def _update_usage_plan(self):
+    """
+    Create usage_plan from provided args
+    :return: True, result from create_usage_plan
+    """
+    usage_plan = self.me
+    changed = False
+
+    try:
+      patches = ApiGwUsagePlan._create_patches(self.module.params, self.me, self.param_map)
+      if patches:
+        changed = True
+
+        if not self.module.check_mode:
+          self.client.update_usage_plan(
+            usagePlanId=self.me['id'],
+            patchOperations=patches
+          )
+          usage_plan = self._retrieve_usage_plan()
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when updating usage_plan via boto3: {}".format(e))
 
     return (changed, usage_plan)
 
@@ -238,6 +306,8 @@ class ApiGwUsagePlan:
     elif self.module.params.get('state', 'present') == 'present':
       if self.me is None:
         (changed, usage_plan) = self._create_usage_plan()
+      else:
+        (changed, usage_plan) = self._update_usage_plan()
 
     self.module.exit_json(changed=changed, usage_plan=usage_plan)
 
