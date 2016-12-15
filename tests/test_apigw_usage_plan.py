@@ -119,6 +119,31 @@ class TestApiGwUsagePlan(unittest.TestCase):
 
     self.usage_plan.module.exit_json.assert_called_once_with(changed='Egah!', usage_plan=None)
 
+  @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan')
+  def test_process_request_removes_api_stages_before_executing_delete(self, m):
+    m.return_value = {
+      'id': 'found',
+      'apiStages': [{'apiId': '1', 'stage': 's1'}, {'apiId': '2', 'stage': 's2'}]
+    }
+    self.usage_plan.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    expected_patches = [
+      {'op': 'remove', 'path': '/apiStages', 'value': '1:s1'},
+      {'op': 'remove', 'path': '/apiStages', 'value': '2:s2'},
+    ]
+
+    self.usage_plan.process_request()
+
+    self.usage_plan.client.update_usage_plan.assert_called_once_with(
+      usagePlanId='found',
+      patchOperations=mock.ANY
+    )
+    self.assertEqual(len(expected_patches), len(self.usage_plan.client.update_usage_plan.call_args[1]['patchOperations']))
+    self.assertItemsEqual(expected_patches, self.usage_plan.client.update_usage_plan.call_args[1]['patchOperations'])
+
   @patch.object(ApiGwUsagePlan, '_retrieve_usage_plan', return_value={'id': 'found'})
   def test_process_request_calls_delete_usage_plan_when_state_absent_and_usage_plan_found(self, m):
     self.usage_plan.module.params = {
@@ -269,7 +294,8 @@ class TestApiGwUsagePlan(unittest.TestCase):
     expected_patches = [
       {'op': 'remove', 'path': '/quota'},
       {'op': 'remove', 'path': '/throttle'},
-      {'op': 'remove', 'path': '/apiStages'},
+      {'op': 'remove', 'path': '/apiStages', 'value': 'id1:stage1'},
+      {'op': 'remove', 'path': '/apiStages', 'value': 'id2:stage2'},
     ]
 
     self.usage_plan.process_request()

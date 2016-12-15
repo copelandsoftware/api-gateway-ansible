@@ -213,6 +213,15 @@ class ApiGwUsagePlan:
 
     return resp
 
+  @staticmethod
+  def _build_api_stages_remove_patches(me):
+    patches = []
+    for entry in me.get('apiStages', []):
+      key = "{0}:{1}".format(entry['apiId'], entry['stage'])
+      patches.append({'op': 'remove', 'path': '/apiStages', 'value': key})
+
+    return patches
+
   def _delete_usage_plan(self):
     """
     Delete usage_plan that matches the returned id
@@ -220,6 +229,11 @@ class ApiGwUsagePlan:
     """
     try:
       if not self.module.check_mode:
+        if 'apiStages' in self.me:
+          patches = ApiGwUsagePlan._build_api_stages_remove_patches(self.me)
+          if patches:
+            self.client.update_usage_plan(usagePlanId=self.me['id'], patchOperations=patches)
+
         self.client.delete_usage_plan(usagePlanId=self.me['id'])
       return True
     except BotoCoreError as e:
@@ -287,7 +301,7 @@ class ApiGwUsagePlan:
     if 'quota' in me and ApiGwUsagePlan._all_defaults(params, ['quota_limit','quota_offset','quota_period']):
       patches.append({'op': 'remove', 'path': "/quota"})
     if 'apiStages' in me and params.get('api_stages', []) == []:
-      patches.append({'op': 'remove', 'path': "/apiStages"})
+      patches.extend(ApiGwUsagePlan._build_api_stages_remove_patches(me))
 
     # add/replace ops
     for p in ['description','throttle_rate_limit','throttle_burst_limit','quota_limit','quota_offset','quota_period']:
