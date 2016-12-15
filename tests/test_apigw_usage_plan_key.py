@@ -124,7 +124,7 @@ class TestApiGwUsagePlanKey(unittest.TestCase):
 
     self.usage_plan_key.process_request()
 
-    self.usage_plan_key.client.delete_usage_plan_key.assert_called_once_with(usagePlanId='upid', apiKeyId='akid')
+    self.usage_plan_key.client.delete_usage_plan_key.assert_called_once_with(usagePlanId='upid', keyId='akid')
 
   @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value={'id': 'found'})
   def test_process_request_skips_delete_and_calls_exit_json_with_true_when_check_mode_set_and_auth_found(self, m):
@@ -152,7 +152,7 @@ class TestApiGwUsagePlanKey(unittest.TestCase):
     self.usage_plan_key.client.delete_usage_plan_key = mock.MagicMock(side_effect=BotoCoreError)
     self.usage_plan_key.process_request()
 
-    self.usage_plan_key.client.delete_usage_plan_key.assert_called_once_with(usagePlanId='upid', apiKeyId='akid')
+    self.usage_plan_key.client.delete_usage_plan_key.assert_called_once_with(usagePlanId='upid', keyId='akid')
     self.usage_plan_key.module.fail_json.assert_called_once_with(
       msg='Error when deleting usage_plan_key via boto3: An unspecified error occurred'
     )
@@ -168,6 +168,60 @@ class TestApiGwUsagePlanKey(unittest.TestCase):
     self.usage_plan_key.process_request()
 
     self.assertEqual(0, self.usage_plan_key.client.delete_usage_plan_key.call_count)
+
+  @patch.object(ApiGwUsagePlanKey, '_create_usage_plan_key', return_value=('veins', 'clogging'))
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value=None)
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_create(self, mra, mca):
+    self.usage_plan_key.process_request()
+
+    self.usage_plan_key.module.exit_json.assert_called_once_with(changed='veins', usage_plan_key='clogging')
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value=None)
+  def test_process_request_returns_create_usage_plan_key_result_when_create_succeeds(self, m):
+    self.usage_plan_key.client.create_usage_plan_key = mock.MagicMock(return_value='woot')
+    self.usage_plan_key.process_request()
+
+    self.usage_plan_key.module.exit_json.assert_called_once_with(changed=True, usage_plan_key='woot')
+
+
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value=None)
+  def test_process_request_calls_create_usage_plan_key_when_state_present_and_usage_plan_key_not_found(self, m):
+    self.usage_plan_key.process_request()
+
+    self.usage_plan_key.client.create_usage_plan_key.assert_called_once_with(
+      usagePlanId='upid',
+      keyId='akid',
+      keyType='API_KEY'
+    )
+
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value=None)
+  def test_process_request_calls_fail_json_when_create_usage_plan_key_raises_exception(self, m):
+    self.usage_plan_key.client.create_usage_plan_key = mock.MagicMock(side_effect=BotoCoreError())
+    self.usage_plan_key.process_request()
+
+    self.usage_plan_key.client.create_usage_plan_key.assert_called_once_with(
+      usagePlanId='upid',
+      keyId='akid',
+      keyType='API_KEY'
+    )
+    self.usage_plan_key.module.fail_json.assert_called_once_with(
+      msg='Error when creating usage_plan_key via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value=None)
+  def test_process_request_skips_create_call_and_returns_changed_True_when_check_mode(self, m):
+    self.usage_plan_key.module.check_mode = True
+    self.usage_plan_key.process_request()
+
+    self.assertEqual(0, self.usage_plan_key.client.create_usage_plan_key.call_count)
+    self.usage_plan_key.module.exit_json.assert_called_once_with(changed=True, usage_plan_key=None)
+
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value='something')
+  def test_process_request_calls_exit_json_properly_when_state_present_and_key_exists(self, m):
+    self.usage_plan_key.client.create_usage_plan_key = mock.MagicMock(side_effect=BotoCoreError())
+    self.usage_plan_key.process_request()
+
+    self.usage_plan_key.module.exit_json.assert_called_once_with(changed=False, usage_plan_key='something')
+
 
   def test_define_argument_spec(self):
     result = ApiGwUsagePlanKey._define_module_argument_spec()

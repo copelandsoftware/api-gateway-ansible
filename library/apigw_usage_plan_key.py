@@ -116,11 +116,32 @@ class ApiGwUsagePlanKey:
       if not self.module.check_mode:
         self.client.delete_usage_plan_key(
           usagePlanId=self.module.params['usage_plan_id'],
-          apiKeyId=self.module.params['api_key_id']
+          keyId=self.module.params['api_key_id']
         )
       return True
     except BotoCoreError as e:
       self.module.fail_json(msg="Error when deleting usage_plan_key via boto3: {}".format(e))
+
+  def _create_usage_plan_key(self):
+    """
+    Create usage_plan_key from provided args
+    :return: True, result from create_usage_plan_key
+    """
+    usage_plan_key = None
+    changed = False
+
+    try:
+      changed = True
+      if not self.module.check_mode:
+        usage_plan_key = self.client.create_usage_plan_key(
+          usagePlanId=self.module.params['usage_plan_id'],
+          keyId=self.module.params['api_key_id'],
+          keyType=self.module.params.get('key_type')
+        )
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when creating usage_plan_key via boto3: {}".format(e))
+
+    return (changed, usage_plan_key)
 
   def process_request(self):
     """
@@ -134,6 +155,11 @@ class ApiGwUsagePlanKey:
 
     if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
       changed = self._delete_usage_plan_key()
+    elif self.module.params.get('state', 'present') == 'present':
+      if self.me is None:
+        (changed, usage_plan_key) = self._create_usage_plan_key()
+      else:
+        usage_plan_key = self.me
 
     self.module.exit_json(changed=changed, usage_plan_key=usage_plan_key)
 
