@@ -101,6 +101,74 @@ class TestApiGwUsagePlanKey(unittest.TestCase):
       msg='Error when getting usage_plan_keys from boto3: An unspecified error occurred'
     )
 
+  @patch.object(ApiGwUsagePlanKey, '_delete_usage_plan_key', return_value='Mitchell!')
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value={'id': 'found'})
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_delete(self, mr, md):
+    self.usage_plan_key.module.params = {
+      'usage_plan_id': 'upid',
+      'api_key_id': 'akid',
+      'state': 'absent',
+    }
+
+    self.usage_plan_key.process_request()
+
+    self.usage_plan_key.module.exit_json.assert_called_once_with(changed='Mitchell!', usage_plan_key=None)
+
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value={'id': 'found'})
+  def test_process_request_calls_delete_usage_plan_key_when_state_absent_and_usage_plan_key_found(self, m):
+    self.usage_plan_key.module.params = {
+      'usage_plan_id': 'upid',
+      'api_key_id': 'akid',
+      'state': 'absent',
+    }
+
+    self.usage_plan_key.process_request()
+
+    self.usage_plan_key.client.delete_usage_plan_key.assert_called_once_with(usagePlanId='upid', apiKeyId='akid')
+
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value={'id': 'found'})
+  def test_process_request_skips_delete_and_calls_exit_json_with_true_when_check_mode_set_and_auth_found(self, m):
+    self.usage_plan_key.module.params = {
+      'usage_plan_id': 'upid',
+      'api_key_id': 'akid',
+      'state': 'absent',
+    }
+    self.usage_plan_key.module.check_mode = True
+
+    self.usage_plan_key.process_request()
+
+    self.assertEqual(0, self.usage_plan_key.client.delete_usage_plan_key.call_count)
+    self.usage_plan_key.module.exit_json.assert_called_once_with(changed=True, usage_plan_key=None)
+
+
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value={'id': 'found'})
+  def test_process_request_calls_fail_json_when_delete_usage_plan_key_raises_error(self, m):
+    self.usage_plan_key.module.params = {
+      'usage_plan_id': 'upid',
+      'api_key_id': 'akid',
+      'state': 'absent',
+    }
+
+    self.usage_plan_key.client.delete_usage_plan_key = mock.MagicMock(side_effect=BotoCoreError)
+    self.usage_plan_key.process_request()
+
+    self.usage_plan_key.client.delete_usage_plan_key.assert_called_once_with(usagePlanId='upid', apiKeyId='akid')
+    self.usage_plan_key.module.fail_json.assert_called_once_with(
+      msg='Error when deleting usage_plan_key via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwUsagePlanKey, '_retrieve_usage_plan_key', return_value=None)
+  def test_process_request_skips_delete_when_usage_plan_key_not_found(self, m):
+    self.usage_plan_key.module.params = {
+      'usage_plan_id': 'upid',
+      'api_key_id': 'akid',
+      'state': 'absent',
+    }
+
+    self.usage_plan_key.process_request()
+
+    self.assertEqual(0, self.usage_plan_key.client.delete_usage_plan_key.call_count)
+
   def test_define_argument_spec(self):
     result = ApiGwUsagePlanKey._define_module_argument_spec()
     self.assertIsInstance(result, dict)

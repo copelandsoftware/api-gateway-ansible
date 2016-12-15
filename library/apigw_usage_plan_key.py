@@ -107,6 +107,21 @@ class ApiGwUsagePlanKey:
 
     return resp
 
+  def _delete_usage_plan_key(self):
+    """
+    Delete usage_plan_key that matches the returned id
+    :return: True
+    """
+    try:
+      if not self.module.check_mode:
+        self.client.delete_usage_plan_key(
+          usagePlanId=self.module.params['usage_plan_id'],
+          apiKeyId=self.module.params['api_key_id']
+        )
+      return True
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when deleting usage_plan_key via boto3: {}".format(e))
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -117,6 +132,10 @@ class ApiGwUsagePlanKey:
     changed = False
     self.me = self._retrieve_usage_plan_key()
 
+    if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
+      changed = self._delete_usage_plan_key()
+
+    self.module.exit_json(changed=changed, usage_plan_key=usage_plan_key)
 
 def main():
     """
