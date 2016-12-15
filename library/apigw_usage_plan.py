@@ -91,11 +91,59 @@ EXAMPLES = '''
 - hosts: localhost
   gather_facts: False
   tasks:
-TBD
+  - name: usage plan creation
+    apigw_usage_plan:
+      name: testplan
+      description: 'this is an awesome test'
+      api_stages:
+        - rest_api_id: abcde12345
+          stage: live
+      throttle_burst_limit: 111
+      throttle_rate_limit: 222.0
+      quota_limit: 333
+      quota_offset: 0
+      quota_period: WEEK
+      state: "{{ state | default('present') }}"
+    register: plan
+
+  - debug: var=plan
 '''
 
 RETURN = '''
-TBD
+{
+  "plan": {
+    "changed": true,
+    "usage_plan": {
+      "ResponseMetadata": {
+        "HTTPHeaders": {
+          "content-length": "223",
+          "content-type": "application/json",
+          "date": "Thu, 15 Dec 2016 15:49:47 GMT",
+        },
+        "HTTPStatusCode": 201,
+        "RetryAttempts": 0
+      },
+      "apiStages": [
+        {
+          "apiId": "abcde12345",
+          "stage": "live"
+        }
+      ],
+      "description": "this is an awesome test",
+      "id": "abc123",
+      "name": "testplan",
+      "quota": {
+        "limit": 333,
+        "offset": 0,
+        "period": "WEEK"
+      },
+      "throttle": {
+        "burstLimit": 111,
+        "rateLimit": 222.0
+      }
+    }
+  }
+}
 '''
 
 __version__ = '${version}'
