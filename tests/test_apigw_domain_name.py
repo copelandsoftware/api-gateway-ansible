@@ -9,7 +9,7 @@ from mock import create_autospec
 from mock import ANY
 import unittest
 import boto
-from botocore.exceptions import BotoCoreError
+from botocore.exceptions import BotoCoreError, ClientError
 
 class TestApiGwDomainName(unittest.TestCase):
 
@@ -22,10 +22,10 @@ class TestApiGwDomainName(unittest.TestCase):
     self.domain_name.client = mock.MagicMock()
     self.domain_name.module.params = {
       'name': 'testify',
-      'description': 'test_description',
-      'value': 'test_value',
-      'generate_distinct_id': False,
-      'enabled': True,
+      'cert_name': 'cert-name',
+      'cert_body': 'cert-body',
+      'cert_private_key': 'cert-private-key',
+      'cert_chain': 'cert-chain',
       'state': 'present',
     }
     reload(apigw_domain_name)
@@ -64,6 +64,32 @@ class TestApiGwDomainName(unittest.TestCase):
   def test_boto3_client_properly_instantiated(self, mock_boto):
     ApiGwDomainName(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
+
+  def test_process_request_calls_get_domain_name_and_stores_result_when_invoked(self):
+    self.domain_name.client.get_domain_name = mock.MagicMock(return_value='found it!')
+
+    self.domain_name.process_request()
+
+    self.assertEqual('found it!', self.domain_name.me)
+    self.domain_name.client.get_domain_name.assert_called_once_with(domainName='testify')
+
+  def test_process_request_stores_None_result_when_not_found_in_get_domain_name_result(self):
+    self.domain_name.client.get_domain_name = mock.MagicMock(side_effect=ClientError({'Error': {'Code': 'x NotFoundException x'}}, 'xxx'))
+
+    self.domain_name.process_request()
+
+    self.assertEqual(None, self.domain_name.me)
+    self.domain_name.client.get_domain_name.assert_called_once_with(domainName='testify')
+
+  def test_process_request_calls_fail_json_when_get_domain_name_raises_exception(self):
+    self.domain_name.client.get_domain_name = mock.MagicMock(side_effect=BotoCoreError())
+
+    self.domain_name.process_request()
+
+    self.domain_name.client.get_domain_name.assert_called_once_with(domainName='testify')
+    self.domain_name.module.fail_json.assert_called_once_with(
+      msg='Error when getting domain_name from boto3: An unspecified error occurred'
+    )
 
   def test_define_argument_spec(self):
     result = ApiGwDomainName._define_module_argument_spec()

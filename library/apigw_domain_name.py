@@ -75,7 +75,7 @@ __version__ = '${version}'
 try:
   import boto3
   import boto
-  from botocore.exceptions import BotoCoreError
+  from botocore.exceptions import BotoCoreError, ClientError
   HAS_BOTO3 = True
 except ImportError:
   HAS_BOTO3 = False
@@ -106,18 +106,20 @@ class ApiGwDomainName:
 
   def _retrieve_domain_name(self):
     """
-    Retrieve all domain_names in the account and match them against the provided name
-    :return: Result matching the provided api name or an empty hash
+    Retrieve domain name by provided name
+    :return: Result matching the provided domain name or an empty hash
     """
     resp = None
     try:
-      get_resp = self.client.get_domain_names(nameQuery=self.module.params['name'], includeValues=True)
+      resp = self.client.get_domain_name(domainName=self.module.params['name'])
 
-      for item in get_resp.get('items', []):
-        if item['name'] == self.module.params.get('name'):
-          resp = item
+    except ClientError as e:
+      if 'NotFoundException' in e.message:
+        resp = None
+      else:
+        self.module.fail_json(msg="Error when getting domain_name from boto3: {}".format(e))
     except BotoCoreError as e:
-      self.module.fail_json(msg="Error when getting domain_names from boto3: {}".format(e))
+      self.module.fail_json(msg="Error when getting domain_name from boto3: {}".format(e))
 
     return resp
 
@@ -127,7 +129,10 @@ class ApiGwDomainName:
     :return: Returns either fail_json or exit_json
     """
 
-    raise NotImplementedError
+    domain_name = None
+    changed = False
+    self.me = self._retrieve_domain_name()
+
 
 def main():
     """
