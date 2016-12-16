@@ -152,7 +152,7 @@ class ApiGwDomainName:
       changed = True
       if not self.module.check_mode:
         domain_name = self.client.create_domain_name(
-          name=self.module.params['name'],
+          domainName=self.module.params['name'],
           certificateName=self.module.params['cert_name'],
           certificateBody=self.module.params['cert_body'],
           certificatePrivateKey=self.module.params['cert_private_key'],

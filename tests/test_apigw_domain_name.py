@@ -176,7 +176,7 @@ class TestApiGwDomainName(unittest.TestCase):
     self.domain_name.process_request()
 
     self.domain_name.client.create_domain_name.assert_called_once_with(
-      name='testify',
+      domainName='testify',
       certificateName='cert-name',
       certificateBody='cert-body',
       certificatePrivateKey='cert-private-key',
@@ -189,7 +189,7 @@ class TestApiGwDomainName(unittest.TestCase):
     self.domain_name.process_request()
 
     self.domain_name.client.create_domain_name.assert_called_once_with(
-      name='testify',
+      domainName='testify',
       certificateName='cert-name',
       certificateBody='cert-body',
       certificatePrivateKey='cert-private-key',
