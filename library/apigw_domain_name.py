@@ -14,6 +14,7 @@
 ## TODO: Add an appropriate license statement
 
 DOCUMENTATION='''
+---
 module: apigw_domain_name
 description: An Ansible module to add, update, or remove DomainName
   resources for AWS API Gateway.
@@ -64,10 +65,29 @@ EXAMPLES = '''
 - hosts: localhost
   gather_facts: False
   tasks:
+  - name: api key creation
+    apigw_domain_name:
+      name: testdomain.io.edu.mil
+      cert_name: 'test-cert'
+      cert_body: 'cert body'
+      cert_private_key: 'totally secure key'
+      cert_chain: 'sure, this is real'
+      state: "{{ state | default('present') }}"
+    register: dn
+
+  - debug: var=dn
 '''
 
 RETURN = '''
-TBD
+---
+domain_name:
+	description: dictionary representing the domain name
+	returned: success
+	type: dict
+changed:
+  description: standard boolean indicating if something changed
+  returned: always
+  type: boolean
 '''
 
 __version__ = '${version}'
