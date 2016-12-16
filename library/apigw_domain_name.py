@@ -164,6 +164,34 @@ class ApiGwDomainName:
 
     return (changed, domain_name)
 
+  def _update_domain_name(self):
+    """
+    Create domain_name from provided args
+    :return: True, result from create_domain_name
+    """
+    domain_name = self.me
+    changed = False
+
+    try:
+      patches = []
+      cert_name = self.module.params.get('cert_name', None)
+      if cert_name not in ['', None] and cert_name != self.me['certificateName']:
+        patches.append({'op': 'replace', 'path': '/certificateName', 'value': cert_name})
+
+      if patches:
+        changed = True
+
+        if not self.module.check_mode:
+          self.client.update_domain_name(
+            domainName=self.module.params['name'],
+            patchOperations=patches
+          )
+          domain_name = self._retrieve_domain_name()
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when updating domain_name via boto3: {}".format(e))
+
+    return (changed, domain_name)
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -179,6 +207,8 @@ class ApiGwDomainName:
     elif self.module.params.get('state', 'present') == 'present':
       if self.me is None:
         (changed, domain_name) = self._create_domain_name()
+      else:
+        (changed, domain_name) = self._update_domain_name()
 
     self.module.exit_json(changed=changed, domain_name=domain_name)
 

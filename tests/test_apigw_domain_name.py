@@ -66,7 +66,8 @@ class TestApiGwDomainName(unittest.TestCase):
     ApiGwDomainName(self.module)
     mock_boto.client.assert_called_once_with('apigateway')
 
-  def test_process_request_calls_get_domain_name_and_stores_result_when_invoked(self):
+  @patch.object(ApiGwDomainName, '_update_domain_name', return_value=('hi', 'mom'))
+  def test_process_request_calls_get_domain_name_and_stores_result_when_invoked(self, m):
     self.domain_name.client.get_domain_name = mock.MagicMock(return_value='found it!')
 
     self.domain_name.process_request()
@@ -216,6 +217,57 @@ class TestApiGwDomainName(unittest.TestCase):
 
     self.assertEqual(0, self.domain_name.client.create_domain_name.call_count)
     self.domain_name.module.exit_json.assert_called_once_with(changed=True, domain_name=None)
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value={'certificateName': 'old'})
+  def test_process_request_calls_update_domain_name_when_state_present_and_domain_name_changed(self, m):
+    expected_patches = [
+      {'op': 'replace', 'path': '/certificateName', 'value': 'cert-name'},
+    ]
+
+    self.domain_name.process_request()
+
+    self.domain_name.client.update_domain_name.assert_called_once_with(
+      domainName='testify',
+      patchOperations=expected_patches
+    )
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value={'certificateName': 'cert-name'})
+  def test_process_request_skips_update_domain_name_and_replies_false_when_no_changes(self, m):
+    self.domain_name.process_request()
+
+    self.assertEqual(0, self.domain_name.client.update_domain_name.call_count)
+    self.domain_name.module.exit_json.assert_called_once_with(changed=False, domain_name={'certificateName': 'cert-name'})
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value={'certificateName': 'cert-namexxx'})
+  def test_process_request_calls_fail_json_when_update_domain_name_raises_exception(self, m):
+    self.domain_name.client.update_domain_name = mock.MagicMock(side_effect=BotoCoreError())
+    self.domain_name.process_request()
+
+    self.domain_name.client.update_domain_name.assert_called_once_with(
+      domainName='testify',
+      patchOperations=[{'op': 'replace', 'path': '/certificateName', 'value': 'cert-name'}]
+    )
+    self.domain_name.module.fail_json.assert_called_once_with(
+      msg='Error when updating domain_name via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', side_effect=[{'certificateName': 'hi'}, 'second call'])
+  def test_process_request_returns_result_of_find_when_update_is_successful(self, m):
+    self.domain_name.process_request()
+
+    self.domain_name.client.update_domain_name.assert_called_once_with(
+      domainName='testify',
+      patchOperations=[{'op': 'replace', 'path': '/certificateName', 'value': 'cert-name'}]
+    )
+    self.domain_name.module.exit_json.assert_called_once_with(changed=True, domain_name='second call')
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value={'certificateName': 'here'})
+  def test_process_request_skips_update_domain_name_and_replies_true_when_check_mode(self, m):
+    self.domain_name.module.check_mode = True
+    self.domain_name.process_request()
+
+    self.assertEqual(0, self.domain_name.client.update_domain_name.call_count)
+    self.domain_name.module.exit_json.assert_called_once_with(changed=True, domain_name={'certificateName': 'here'})
 
   def test_define_argument_spec(self):
     result = ApiGwDomainName._define_module_argument_spec()
