@@ -91,6 +91,69 @@ class TestApiGwDomainName(unittest.TestCase):
       msg='Error when getting domain_name from boto3: An unspecified error occurred'
     )
 
+  @patch.object(ApiGwDomainName, '_delete_domain_name', return_value='Mitchell!')
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value={'id': 'found'})
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_delete(self, mr, md):
+    self.domain_name.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.domain_name.process_request()
+
+    self.domain_name.module.exit_json.assert_called_once_with(changed='Mitchell!', domain_name=None)
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value={'id': 'found'})
+  def test_process_request_calls_delete_domain_name_when_state_absent_and_domain_name_found(self, m):
+    self.domain_name.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.domain_name.process_request()
+
+    self.domain_name.client.delete_domain_name.assert_called_once_with(domainName='testify')
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value={'id': 'found'})
+  def test_process_request_skips_delete_and_calls_exit_json_with_true_when_check_mode_set_and_auth_found(self, m):
+    self.domain_name.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+    self.domain_name.module.check_mode = True
+
+    self.domain_name.process_request()
+
+    self.assertEqual(0, self.domain_name.client.delete_domain_name.call_count)
+    self.domain_name.module.exit_json.assert_called_once_with(changed=True, domain_name=None)
+
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value={'id': 'found'})
+  def test_process_request_calls_fail_json_when_delete_domain_name_raises_error(self, m):
+    self.domain_name.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.domain_name.client.delete_domain_name = mock.MagicMock(side_effect=BotoCoreError)
+    self.domain_name.process_request()
+
+    self.domain_name.client.delete_domain_name.assert_called_once_with(domainName='testify')
+    self.domain_name.module.fail_json.assert_called_once_with(
+      msg='Error when deleting domain_name via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value=None)
+  def test_process_request_skips_delete_when_domain_name_not_found(self, m):
+    self.domain_name.module.params = {
+      'name': 'testify',
+      'state': 'absent',
+    }
+
+    self.domain_name.process_request()
+
+    self.assertEqual(0, self.domain_name.client.delete_domain_name.call_count)
+
   def test_define_argument_spec(self):
     result = ApiGwDomainName._define_module_argument_spec()
     self.assertIsInstance(result, dict)

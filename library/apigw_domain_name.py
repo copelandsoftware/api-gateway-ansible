@@ -123,6 +123,18 @@ class ApiGwDomainName:
 
     return resp
 
+  def _delete_domain_name(self):
+    """
+    Delete domain_name that matches the returned id
+    :return: True
+    """
+    try:
+      if not self.module.check_mode:
+        self.client.delete_domain_name(domainName=self.module.params['name'])
+      return True
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when deleting domain_name via boto3: {}".format(e))
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -133,6 +145,10 @@ class ApiGwDomainName:
     changed = False
     self.me = self._retrieve_domain_name()
 
+    if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
+      changed = self._delete_domain_name()
+
+    self.module.exit_json(changed=changed, domain_name=domain_name)
 
 def main():
     """
