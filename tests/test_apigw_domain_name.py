@@ -10,6 +10,7 @@ from mock import ANY
 import unittest
 import boto
 from botocore.exceptions import BotoCoreError, ClientError
+import copy
 
 class TestApiGwDomainName(unittest.TestCase):
 
@@ -153,6 +154,68 @@ class TestApiGwDomainName(unittest.TestCase):
     self.domain_name.process_request()
 
     self.assertEqual(0, self.domain_name.client.delete_domain_name.call_count)
+
+  @patch.object(ApiGwDomainName, '_create_domain_name', return_value=('veins', 'clogging'))
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value=None)
+  def test_process_request_calls_exit_json_with_expected_value_after_successful_create(self, mra, mca):
+    self.domain_name.process_request()
+
+    self.domain_name.module.exit_json.assert_called_once_with(changed='veins', domain_name='clogging')
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value=None)
+  def test_process_request_returns_create_domain_name_result_when_create_succeeds(self, m):
+    self.domain_name.client.create_domain_name = mock.MagicMock(return_value='woot')
+    self.domain_name.process_request()
+
+    self.domain_name.module.exit_json.assert_called_once_with(changed=True, domain_name='woot')
+
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value=None)
+  def test_process_request_calls_create_domain_name_when_state_present_and_domain_name_not_found(self, m):
+    self.domain_name.process_request()
+
+    self.domain_name.client.create_domain_name.assert_called_once_with(
+      name='testify',
+      certificateName='cert-name',
+      certificateBody='cert-body',
+      certificatePrivateKey='cert-private-key',
+      certificateChain='cert-chain',
+    )
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value=None)
+  def test_process_request_calls_fail_json_when_create_domain_name_raises_exception(self, m):
+    self.domain_name.client.create_domain_name = mock.MagicMock(side_effect=BotoCoreError())
+    self.domain_name.process_request()
+
+    self.domain_name.client.create_domain_name.assert_called_once_with(
+      name='testify',
+      certificateName='cert-name',
+      certificateBody='cert-body',
+      certificatePrivateKey='cert-private-key',
+      certificateChain='cert-chain',
+    )
+    self.domain_name.module.fail_json.assert_called_once_with(
+      msg='Error when creating domain_name via boto3: An unspecified error occurred'
+    )
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value=None)
+  def test_process_request_validates_required_params_when_state_is_present(self, m):
+    orig = copy.deepcopy(self.domain_name.module.params)
+
+    for p in ['cert_name', 'cert_body', 'cert_private_key', 'cert_chain']:
+      self.domain_name.module.params = copy.deepcopy(orig)
+      self.domain_name.module.params.pop(p)
+      self.domain_name.process_request()
+      self.assertEqual(0, self.domain_name.client.create_domain_name.call_count)
+      self.domain_name.module.fail_json.assert_called_with(msg='All certificate parameters are required to create a domain name')
+
+  @patch.object(ApiGwDomainName, '_retrieve_domain_name', return_value=None)
+  def test_process_request_skips_create_call_and_returns_changed_True_when_check_mode(self, m):
+    self.domain_name.module.check_mode = True
+    self.domain_name.process_request()
+
+    self.assertEqual(0, self.domain_name.client.create_domain_name.call_count)
+    self.domain_name.module.exit_json.assert_called_once_with(changed=True, domain_name=None)
 
   def test_define_argument_spec(self):
     result = ApiGwDomainName._define_module_argument_spec()

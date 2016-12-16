@@ -135,6 +135,35 @@ class ApiGwDomainName:
     except BotoCoreError as e:
       self.module.fail_json(msg="Error when deleting domain_name via boto3: {}".format(e))
 
+  def _create_domain_name(self):
+    """
+    Create domain_name from provided args
+    :return: True, result from create_domain_name
+    """
+    domain_name = None
+    changed = False
+
+    for required in ['cert_name', 'cert_body', 'cert_private_key', 'cert_chain']:
+      if self.module.params.get(required, None) is None:
+        self.module.fail_json(msg="All certificate parameters are required to create a domain name")
+        return (changed, domain_name)
+
+    try:
+      changed = True
+      if not self.module.check_mode:
+        domain_name = self.client.create_domain_name(
+          name=self.module.params['name'],
+          certificateName=self.module.params['cert_name'],
+          certificateBody=self.module.params['cert_body'],
+          certificatePrivateKey=self.module.params['cert_private_key'],
+          certificateChain=self.module.params['cert_chain'],
+        )
+
+    except BotoCoreError as e:
+      self.module.fail_json(msg="Error when creating domain_name via boto3: {}".format(e))
+
+    return (changed, domain_name)
+
   def process_request(self):
     """
     Process the user's request -- the primary code path
@@ -147,6 +176,9 @@ class ApiGwDomainName:
 
     if self.module.params.get('state', 'present') == 'absent' and self.me is not None:
       changed = self._delete_domain_name()
+    elif self.module.params.get('state', 'present') == 'present':
+      if self.me is None:
+        (changed, domain_name) = self._create_domain_name()
 
     self.module.exit_json(changed=changed, domain_name=domain_name)
 
