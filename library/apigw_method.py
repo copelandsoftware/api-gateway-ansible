@@ -913,11 +913,11 @@ class ApiGwMethod:
     if p['authorization_type'] == 'CUSTOM' and 'authorizer_id' not in p:
       raise InvalidInputError('authorizer_id', "authorizer_id must be provided when authorization_type is 'CUSTOM'")
 
-    if p['method_integration']['integration_type'] in ['AWS', 'HTTP']:
+    if p['method_integration']['integration_type'] in ['AWS', 'HTTP', 'AWS_PROXY']:
       if 'http_method' not in p['method_integration']:
-        raise InvalidInputError('method_integration', "http_method must be provided when integration_type is 'AWS' or 'HTTP'")
+        raise InvalidInputError('method_integration', "http_method must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'")
       elif 'uri' not in p['method_integration']:
-        raise InvalidInputError('method_integration', "uri must be provided when integration_type is 'AWS' or 'HTTP'")
+        raise InvalidInputError('method_integration', "uri must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'")
 
     for ir in p['integration_responses']:
       if 'is_default' in ir and ir['is_default'] and 'pattern' in ir:

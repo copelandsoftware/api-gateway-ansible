@@ -1016,7 +1016,7 @@ class TestApiGwMethod(unittest.TestCase):
           'delete_keys': ['method_integration.http_method'],
           'error': {
             'param': 'method_integration',
-            'msg': "http_method must be provided when integration_type is 'AWS' or 'HTTP'"
+            'msg': "http_method must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
           }
         },
         {
@@ -1024,7 +1024,15 @@ class TestApiGwMethod(unittest.TestCase):
           'delete_keys': ['method_integration.http_method'],
           'error': {
             'param': 'method_integration',
-            'msg': "http_method must be provided when integration_type is 'AWS' or 'HTTP'"
+            'msg': "http_method must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
+          }
+        },
+        {
+          'changes': {'method_integration': {'integration_type': 'AWS_PROXY'}},
+          'delete_keys': ['method_integration.http_method'],
+          'error': {
+            'param': 'method_integration',
+            'msg': "http_method must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
           }
         },
         {
@@ -1032,7 +1040,7 @@ class TestApiGwMethod(unittest.TestCase):
           'delete_keys': ['method_integration.uri'],
           'error': {
             'param': 'method_integration',
-            'msg': "uri must be provided when integration_type is 'AWS' or 'HTTP'"
+            'msg': "uri must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
           }
         },
         {
@@ -1040,7 +1048,15 @@ class TestApiGwMethod(unittest.TestCase):
           'delete_keys': ['method_integration.uri'],
           'error': {
             'param': 'method_integration',
-            'msg': "uri must be provided when integration_type is 'AWS' or 'HTTP'"
+            'msg': "uri must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
+          }
+        },
+        {
+          'changes': {'method_integration': {'integration_type': 'AWS_PROXY'}},
+          'delete_keys': ['method_integration.uri'],
+          'error': {
+            'param': 'method_integration',
+            'msg': "uri must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
           }
         },
         {
