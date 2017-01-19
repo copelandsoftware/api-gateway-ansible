@@ -605,10 +605,17 @@ def put_method_response(params):
       httpMethod=params.get('name'),
       statusCode=str(mr_params.get('status_code'))
     )
+
     resp_models = {}
     for model in mr_params.get('response_models', []):
       resp_models[model.get('content_type')] = model.get('model', 'Empty')
     kwargs['responseModels'] = resp_models
+
+    resp_params = {}
+    for resp in mr_params.get('response_params', []):
+      resp_params["method.response.header.{}".format(resp.get('name'))] = resp.get('is_required')
+    kwargs['responseParameters'] = resp_params
+
     args.append(kwargs)
 
   return args
@@ -625,9 +632,11 @@ def update_method_response(method, params):
   # Coerce params into struct compatible with boto's response
   mr_dict = {}
   for p in params.get('method_responses', []):
-    mr_dict[str(p['status_code'])] = {}
+    mr_dict[str(p['status_code'])] = {'models': {}, 'params': {}}
     for model in p.get('response_models', []):
-      mr_dict[str(p['status_code'])][model['content_type']] = model.get('model', 'Empty')
+      mr_dict[str(p['status_code'])]['models'][model['content_type']] = model.get('model', 'Empty')
+    for rp in p.get('response_params', []):
+      mr_dict[str(p['status_code'])]['params'][rp['name']] = rp['is_required']
 
   mr_aws = method.get('methodResponses', {})
 
@@ -640,13 +649,20 @@ def update_method_response(method, params):
         httpMethod=params.get('name'),
         statusCode=code
       )
+
       resp_models = {}
-      for content_type, model in mr_dict[code].iteritems():
+      for content_type, model in mr_dict[code]['models'].iteritems():
         resp_models[content_type] = model
       kwargs['responseModels'] = resp_models
+
+      resp_params = {}
+      for param_name, required in mr_dict[code]['params'].iteritems():
+        resp_params["method.response.header.{}".format(param_name)] = required
+      kwargs['responseParameters'] = resp_params
+
       ops['creates'].append(kwargs)
     else:
-      for content_type, model in mr_dict[code].iteritems():
+      for content_type, model in mr_dict[code]['models'].iteritems():
         if content_type not in mr_aws[code]['responseModels']:
           patch_dict.setdefault(code, []).append(create_patch('add', content_type, prefix='responseModels', value=model))
         elif model != mr_aws[code]['responseModels'][content_type]:
@@ -664,7 +680,7 @@ def update_method_response(method, params):
       ops['deletes'].append(kwargs)
     elif 'responseModels' in mr_aws[code]:
       for content_type, model in mr_aws[code]['responseModels'].iteritems():
-        if content_type not in mr_dict[code]:
+        if content_type not in mr_dict[code]['models']:
           patch_dict.setdefault(code, []).append(create_patch('remove', content_type, prefix='responseModels'))
 
   for code in patch_dict:

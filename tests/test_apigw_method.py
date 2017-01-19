@@ -606,6 +606,7 @@ class TestApiGwMethod(unittest.TestCase):
       resourceId='rsrcid',
       httpMethod='GET',
       statusCode='500',
+      responseParameters={},
       responseModels={}
     )
     self.method.client.delete_method_response.assert_called_once_with(
@@ -624,7 +625,11 @@ class TestApiGwMethod(unittest.TestCase):
       'resource_id': 'rsrcid',
       'name': 'GET',
       'method_responses': [
-        {'status_code': 202, 'response_models': [ {'content_type': 'application/json', 'model': 'Error'}, ]},
+        {
+          'status_code': 202,
+          'response_params': [ {'name': 'param1', 'is_required': False} ],
+          'response_models': [ {'content_type': 'application/json', 'model': 'Error'}, ]
+        },
       ],
       'state': 'present'
     }
@@ -638,6 +643,7 @@ class TestApiGwMethod(unittest.TestCase):
       resourceId='rsrcid',
       httpMethod='GET',
       statusCode='202',
+      responseParameters={'method.response.header.param1': False},
       responseModels={'application/json': 'Error'}
     )
 
@@ -891,17 +897,22 @@ class TestApiGwMethod(unittest.TestCase):
   def test_process_request_calls_put_method_response_when_method_is_absent(self, mock_find):
     p = [
         {'status_code': 200, 'response_models': [{'content_type': 'ct1', 'model': 'model'},{'content_type': 'ct2'}]},
-        {'status_code': 400},
+        {'status_code': 400, 'response_params': [{'name': 'err_param', 'is_required': True}]},
         {'status_code': 500}
     ]
     self.method.module.params['method_responses'] = p;
     expected = [
       dict(
         restApiId='restid', resourceId='rsrcid', httpMethod='GET',
-        statusCode='200', responseModels={'ct1': 'model', 'ct2': 'Empty'}
+        statusCode='200', responseParameters={}, responseModels={'ct1': 'model', 'ct2': 'Empty'}
       ),
-      dict(restApiId='restid', resourceId='rsrcid', httpMethod='GET', statusCode='400', responseModels={}),
-      dict(restApiId='restid', resourceId='rsrcid', httpMethod='GET', statusCode='500', responseModels={})
+      dict(
+        restApiId='restid', resourceId='rsrcid', httpMethod='GET',
+        statusCode='400', responseParameters={'method.response.header.err_param': True}, responseModels={}),
+      dict(
+        restApiId='restid', resourceId='rsrcid', httpMethod='GET',
+        statusCode='500', responseParameters={}, responseModels={}
+      )
     ]
 
     self.method.process_request()
@@ -999,6 +1010,7 @@ class TestApiGwMethod(unittest.TestCase):
         resourceId='rsrcid',
         httpMethod='GET',
         statusCode='200',
+        responseParameters={},
         responseModels={}
     )
     self.method.module.fail_json.assert_called_once_with(
