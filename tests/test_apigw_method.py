@@ -563,7 +563,13 @@ class TestApiGwMethod(unittest.TestCase):
   def test_process_request_updates_method_responses_when_present_and_changed(self, mock_find, mock_vp):
     mock_find.return_value = {
       'methodResponses': {
-        '202': {'statusCode': '202', 'responseModels': {'application/json': 'Empty', 'delete': 'me'}},
+        '202': {'statusCode': '202',
+                'responseModels': {'application/json': 'Empty', 'delete': 'me'},
+                'responseParameters': {
+                  'method.response.header.shouldbetrue': False,
+                  'method.response.header.deleteme': True,
+                },
+               },
         '400': {'statusCode': '400'},
         '404': {'statusCode': '404'}
       }
@@ -575,6 +581,9 @@ class TestApiGwMethod(unittest.TestCase):
       'name': 'GET',
       'method_responses': [
         {'status_code': 202,
+          'response_params': [
+            {'name': 'addparam', 'is_required': False},
+            {'name': 'shouldbetrue', 'is_required': True}],
           'response_models': [
             {'content_type': 'application/json', 'model': 'Error'},
             {'content_type': 'add', 'model': 'me'}
@@ -589,6 +598,9 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'replace', 'path': '/responseModels/application~1json', 'value': 'Error'},
       {'op': 'add', 'path': '/responseModels/add', 'value': 'me'},
       {'op': 'remove', 'path': '/responseModels/delete'},
+      {'op': 'replace', 'path': '/responseParameters/method.response.header.shouldbetrue', 'value': 'True'},
+      {'op': 'add', 'path': '/responseParameters/method.response.header.addparam', 'value': 'False'},
+      {'op': 'remove', 'path': '/responseParameters/method.response.header.deleteme'},
     ]
 
     self.method.process_request()

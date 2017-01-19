@@ -668,6 +668,17 @@ def update_method_response(method, params):
         elif model != mr_aws[code]['responseModels'][content_type]:
           patch_dict.setdefault(code, []).append(create_patch('replace', content_type, prefix='responseModels', value=model))
 
+      for param, required in mr_dict[code]['params'].iteritems():
+        full_param = "method.response.header.{}".format(param)
+        if full_param not in mr_aws[code]['responseParameters']:
+          patch_dict.setdefault(code, []).append(
+            create_patch('add', full_param, prefix='responseParameters', value=str(required))
+          )
+        elif str(required).lower() != str(mr_aws[code]['responseParameters'][full_param]).lower():
+          patch_dict.setdefault(code, []).append(
+            create_patch('replace', full_param, prefix='responseParameters', value=str(required))
+          )
+
   # Find codes and response models that need to be deleted
   for code in mr_aws:
     if code not in mr_dict:
@@ -678,10 +689,13 @@ def update_method_response(method, params):
         statusCode=code
       )
       ops['deletes'].append(kwargs)
-    elif 'responseModels' in mr_aws[code]:
-      for content_type, model in mr_aws[code]['responseModels'].iteritems():
+    else:
+      for content_type, model in mr_aws[code].get('responseModels', {}).iteritems():
         if content_type not in mr_dict[code]['models']:
           patch_dict.setdefault(code, []).append(create_patch('remove', content_type, prefix='responseModels'))
+      for param, required in mr_aws[code].get('responseParameters', {}).iteritems():
+        if param.split('.')[-1] not in mr_dict[code]['params']:
+          patch_dict.setdefault(code, []).append(create_patch('remove', param, prefix='responseParameters'))
 
   for code in patch_dict:
     ops['updates'].append(dict(
