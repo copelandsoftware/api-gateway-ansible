@@ -79,13 +79,13 @@ options:
         choices: ['AWS', 'MOCK', 'HTTP', 'HTTP_PROXY', 'AWS_PROXY']
         required: False
       http_method:
-        description: Method used by the integration.  This is required when C(integration_type) is 'HTTP' or 'AWS'.
+        description: Method used by the integration.  This is required when C(integration_type) is 'HTTP', 'AWS_PROXY', or 'AWS'.
         type: 'string'
         default: 'POST'
         choices: ['POST', 'GET', 'PUT']
         required: False
       uri:
-        description: The URI of the integration input.  This field is required when C(integration_type) is 'HTTP' or 'AWS'.
+        description: The URI of the integration input.  This field is required when C(integration_type) is 'HTTP', 'AWS_PROXY', or 'AWS'.
         type: 'string'
         default: None
         required: False
@@ -512,7 +512,7 @@ def put_integration(params):
   if params.get('method_integration', {}).get('credentials', '') != '':
     optional_map['credentials'] = 'credentials'
 
-  if params['method_integration'].get('integration_type', 'AWS') in ['AWS', 'HTTP']:
+  if params['method_integration'].get('integration_type', 'AWS') in ['AWS', 'HTTP', 'AWS_PROXY']:
     optional_map['uri'] = 'uri'
     optional_map['http_method'] = 'integrationHttpMethod'
 
@@ -534,7 +534,7 @@ def update_integration(method, params):
     param_map['credentials'] = 'credentials'
 
   ops = []
-  if params.get('method_integration', {}).get('integration_type', 'AWS').upper() in ['AWS', 'HTTP']:
+  if params.get('method_integration', {}).get('integration_type', 'AWS').upper() in ['AWS', 'HTTP', 'AWS_PROXY']:
     param_map['uri'] = 'uri'
 
     # stupid special snowflake crap
@@ -542,11 +542,10 @@ def update_integration(method, params):
     if ops:
       ops[0]['path'] = '/integrationHttpMethod'
 
-
   if mi_params.get('uses_caching', False):
     param_map['cache_namespace'] = 'cacheNamespace'
 
-  ops = patch_builder(method.get('methodIntegration', {}), mi_params, param_map)
+  ops.extend(patch_builder(method.get('methodIntegration', {}), mi_params, param_map))
 
   if mi_params.get('uses_caching', False) and 'cache_key_parameters' in mi_params:
     new_params = []

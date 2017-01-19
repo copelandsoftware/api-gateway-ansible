@@ -359,7 +359,7 @@ class TestApiGwMethod(unittest.TestCase):
 
   @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method')
-  def test_process_request_calls_skips_patching_http_method_and_uri_when_type_not_AWS(self, mock_find, mock_vp):
+  def test_process_request_skips_patching_http_method_and_uri_when_not_AWS(self, mock_find, mock_vp):
     mock_find.return_value = {
       'methodIntegration': {
         'type': 'XXX',
@@ -392,8 +392,82 @@ class TestApiGwMethod(unittest.TestCase):
     self.assertEqual(0, self.method.client.update_integration.call_count)
 
   @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method', return_value={})
+  def test_process_request_adds_integration_type_and_http_method_for_certain_integration_types(self, mock_find, mock_vp):
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_integration': {
+        'http_method': 'methody method',
+        'uri': 'a majestic uri',
+        'passthrough_behavior': 'when_no_templates',
+        'request_templates': [],
+        'uses_caching': False,
+        'integration_params': [],
+      },
+      'state': 'present'
+    }
+
+    expected = [
+      {'path': '/integrationHttpMethod', 'value': 'totally different', 'op': 'replace'},
+      {'path': '/uri', 'value': 'also totally different', 'op': 'replace'}
+    ]
+
+    for t in ['AWS', 'HTTP', 'AWS_PROXY']:
+      self.method.module.params['method_integration']['integration_type'] = t
+      self.method.process_request()
+
+      self.assertEqual('a majestic uri', self.method.client.put_integration.call_args[1]['uri'])
+      self.assertEqual('methody method', self.method.client.put_integration.call_args[1]['integrationHttpMethod'])
+      self.method.client.update_integration.call_args = []
+
+  @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method')
-  def test_process_request_calls_skips_patching_inherited_cache_values_when_not_using_cache(self, mock_find, mock_vp):
+  def test_process_request_creates_patches_for_uri_and_http_method_for_certain_types(self, mock_find, mock_vp):
+    mock_return = {
+      'methodIntegration': {
+        'httpMethod': 'POST',
+        'uri': 'magical-uri',
+        'passthroughBehavior': 'when_no_templates',
+        'requestParameters': {},
+        'requestTemplates': {}
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_integration': {
+        'http_method': 'totally different',
+        'uri': 'also totally different',
+        'passthrough_behavior': 'when_no_templates',
+        'request_templates': [],
+        'uses_caching': False,
+        'integration_params': [],
+      },
+      'state': 'present'
+    }
+
+    expected = [
+      {'path': '/integrationHttpMethod', 'value': 'totally different', 'op': 'replace'},
+      {'path': '/uri', 'value': 'also totally different', 'op': 'replace'}
+    ]
+
+    for t in ['AWS', 'HTTP', 'AWS_PROXY']:
+      mock_return['methodIntegration']['type'] = t
+      self.method.module.params['method_integration']['integration_type'] = t
+      mock_find.return_value = mock_return
+      self.method.process_request()
+
+      self.assertItemsEqual(expected, self.method.client.update_integration.call_args[1]['patchOperations'])
+      self.method.client.update_integration.call_args = []
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_skips_patching_inherited_cache_values_when_not_using_cache(self, mock_find, mock_vp):
     mock_find.return_value = {
       'methodIntegration': {
         'type': 'XXX',
