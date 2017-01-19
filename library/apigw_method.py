@@ -159,6 +159,20 @@ options:
         type: 'string'
         default: None
         required: False
+      response_params:
+        description: List of dictionaries defining header fields that are available in the integration response
+        type: 'list'
+        default: []
+        required: False
+        options:
+          name:
+            description: A unique name for this response parameter
+            type: 'string'
+            required: True
+          is_required:
+            description: Specifies if the field is required or not
+            type: 'bool'
+            required: True
       response_models:
         description: List of dictionaries that specify Model resources used for the response's content type.
         type: 'list'
@@ -864,6 +878,13 @@ class ApiGwMethod:
           type='list',
           default=[],
           status_code=dict(required=True),
+          response_params=dict(
+            type='list',
+            required=False,
+            default=[],
+            name=dict(required=True),
+            is_required=dict(required=True, type='bool')
+          ),
           response_models=dict(
             type='list',
             required=False,

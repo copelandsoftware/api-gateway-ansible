@@ -1243,6 +1243,13 @@ class TestApiGwMethod(unittest.TestCase):
                        type='list',
                        default=[],
                        status_code=dict(required=True),
+                       response_params=dict(
+                         type='list',
+                         required=False,
+                         default=[],
+                         name=dict(required=True),
+                         is_required=dict(required=True, type='bool')
+                       ),
                        response_models=dict(
                          type='list',
                          required=False,
