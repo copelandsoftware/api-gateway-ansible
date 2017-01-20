@@ -421,7 +421,7 @@ class TestApiGwMethod(unittest.TestCase):
 
       self.assertEqual('a majestic uri', self.method.client.put_integration.call_args[1]['uri'])
       self.assertEqual('methody method', self.method.client.put_integration.call_args[1]['integrationHttpMethod'])
-      self.method.client.update_integration.call_args = []
+      self.method.client.put_integration.call_args = []
 
   @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method')
@@ -519,6 +519,7 @@ class TestApiGwMethod(unittest.TestCase):
         ],
         'cache_namespace': 'cn',
         'cache_key_parameters': [],
+        'content_handling': 'convert_to_text',
         'integration_params': [
           {'name': 'bob', 'location': 'path', 'value': 'sure'},
         ],
@@ -539,7 +540,8 @@ class TestApiGwMethod(unittest.TestCase):
       requestTemplates={'addme': 'addval', 'change/me': 'changeval'},
       passthroughBehavior='when_no_templates',
       cacheNamespace='cn',
-      cacheKeyParameters=[]
+      cacheKeyParameters=[],
+      contentHandling='CONVERT_TO_TEXT'
     )
 
     self.method.process_request()
@@ -897,6 +899,7 @@ class TestApiGwMethod(unittest.TestCase):
       },
       requestTemplates={'application/json': '{}'},
       passthroughBehavior='ptb',
+      contentHandling='',
       cacheNamespace='cn',
       cacheKeyParameters=['param1', 'param2']
     )
@@ -1006,6 +1009,7 @@ class TestApiGwMethod(unittest.TestCase):
         resourceId='rsrcid',
         httpMethod='GET',
         type='value',
+        contentHandling='',
         requestParameters={},
         requestTemplates={}
     )

@@ -517,6 +517,7 @@ def put_integration(params):
     restApiId=params.get('rest_api_id'),
     resourceId=params.get('resource_id'),
     httpMethod=params.get('name'),
+    contentHandling=params['method_integration'].get('content_handling', '').upper(),
     type=params['method_integration'].get('integration_type', 'AWS'),
     requestParameters=param_transformer(params['method_integration'].get('integration_params', []), 'request', 'integration'),
     requestTemplates=add_templates(params['method_integration'].get('request_templates', []))
