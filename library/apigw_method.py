@@ -129,6 +129,12 @@ options:
         type: 'list'
         default: []
         required: False
+      content_handling:
+        description: Specifies how to handle request payload content type conversions
+        type: 'string'
+        default: ''
+        required: False
+        choices: ['', 'convert_to_binary', 'convert_to_text']
       integration_params:
         description: List of dictionaries that represent parameters passed from the method request to the back end.
         type: 'list'
@@ -895,6 +901,7 @@ class ApiGwMethod:
           uses_caching=dict(required=False, default=False, type='bool'),
           cache_namespace=dict(required=False, default=''),
           cache_key_parameters=dict(required=False, type='list', default=[]),
+          content_handling=dict(required=False, default='', choices=['convert_to_binary', 'convert_to_text', '']),
           integration_params=dict(
             type='list',
             required=False,
