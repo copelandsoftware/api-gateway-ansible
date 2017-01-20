@@ -563,11 +563,7 @@ def update_integration(method, params):
   ops = []
   if mi_params.get('integration_type', 'AWS').upper() in ['AWS', 'HTTP', 'AWS_PROXY']:
     param_map['uri'] = 'uri'
-
-    # stupid special snowflake crap
-    ops.extend(patch_builder(method.get('methodIntegration', {}), mi_params, {'http_method': 'httpMethod'}))
-    if ops:
-      ops[0]['path'] = '/integrationHttpMethod'
+    param_map['http_method'] = 'httpMethod'
 
   if mi_params.get('uses_caching', False):
     param_map['cache_namespace'] = 'cacheNamespace'

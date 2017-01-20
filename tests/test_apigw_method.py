@@ -442,11 +442,6 @@ class TestApiGwMethod(unittest.TestCase):
       'state': 'present'
     }
 
-    expected = [
-      {'path': '/integrationHttpMethod', 'value': 'totally different', 'op': 'replace'},
-      {'path': '/uri', 'value': 'also totally different', 'op': 'replace'}
-    ]
-
     for t in ['AWS', 'HTTP', 'AWS_PROXY']:
       self.method.module.params['method_integration']['integration_type'] = t
       self.method.process_request()
@@ -484,7 +479,7 @@ class TestApiGwMethod(unittest.TestCase):
     }
 
     expected = [
-      {'path': '/integrationHttpMethod', 'value': 'totally different', 'op': 'replace'},
+      {'path': '/httpMethod', 'value': 'totally different', 'op': 'replace'},
       {'path': '/uri', 'value': 'also totally different', 'op': 'replace'}
     ]
 
