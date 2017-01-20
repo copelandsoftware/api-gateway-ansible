@@ -294,6 +294,36 @@ class TestApiGwMethod(unittest.TestCase):
 
   @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method')
+  def test_process_skips_update_when_content_handling_missing_from_aws_and_default_from_user(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'methodIntegration': {
+        'type': 'AWS',
+        'httpMethod': 'POST',
+        'uri': 'magical-uri',
+        'passthroughBehavior': 'when_no_templates',
+        'credentials': 'existing creds',
+        'cacheNamespace': '',
+        'cacheKeyParameters': [],
+      }
+    }
+
+    self.method.module.params = {
+      'method_integration': {
+        'integration_type': 'AWS',
+        'http_method': 'POST',
+        'uri': 'magical-uri',
+        'credentials': 'existing creds',
+        'passthrough_behavior': 'when_no_templates',
+      },
+      'state': 'present'
+    }
+
+    self.method.process_request()
+
+    self.assertEqual(0, self.method.client.update_integration.call_count)
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
   def test_process_request_calls_update_integration_when_present_and_changed(self, mock_find, mock_vp):
     mock_find.return_value = {
       'methodIntegration': {
@@ -303,6 +333,7 @@ class TestApiGwMethod(unittest.TestCase):
         'passthroughBehavior': 'when_no_templates',
         'credentials': 'existing creds',
         'requestParameters': {'integration.request.path.bob': 'not-sure'},
+        'contentHandling': 'CONVERT_TO_TEXT',
         'cacheNamespace': '',
         'cacheKeyParameters': [u'ckp1', u'ckp2'],
         'requestTemplates': {
@@ -341,6 +372,7 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'replace', 'path': '/uri', 'value': 'magical-uri'},
       {'op': 'replace', 'path': '/cacheNamespace', 'value': 'cn'},
       {'op': 'replace', 'path': '/credentials', 'value': 'new creds'},
+      {'op': 'replace', 'path': '/contentHandling', 'value': ''},
       {'op': 'replace', 'path': '/requestParameters/integration.request.path.bob', 'value': 'sure'},
       {'op': 'add', 'path': '/requestTemplates/addme', 'value': 'addval'},
       {'op': 'remove', 'path': '/requestTemplates/deleteme'},
@@ -359,7 +391,7 @@ class TestApiGwMethod(unittest.TestCase):
 
   @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method')
-  def test_process_request_calls_skips_patching_http_method_and_uri_when_type_not_AWS(self, mock_find, mock_vp):
+  def test_process_request_skips_patching_http_method_and_uri_when_not_AWS(self, mock_find, mock_vp):
     mock_find.return_value = {
       'methodIntegration': {
         'type': 'XXX',
@@ -392,8 +424,82 @@ class TestApiGwMethod(unittest.TestCase):
     self.assertEqual(0, self.method.client.update_integration.call_count)
 
   @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method', return_value={})
+  def test_process_request_adds_integration_type_and_http_method_for_certain_integration_types(self, mock_find, mock_vp):
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_integration': {
+        'http_method': 'methody method',
+        'uri': 'a majestic uri',
+        'passthrough_behavior': 'when_no_templates',
+        'request_templates': [],
+        'uses_caching': False,
+        'integration_params': [],
+      },
+      'state': 'present'
+    }
+
+    expected = [
+      {'path': '/integrationHttpMethod', 'value': 'totally different', 'op': 'replace'},
+      {'path': '/uri', 'value': 'also totally different', 'op': 'replace'}
+    ]
+
+    for t in ['AWS', 'HTTP', 'AWS_PROXY']:
+      self.method.module.params['method_integration']['integration_type'] = t
+      self.method.process_request()
+
+      self.assertEqual('a majestic uri', self.method.client.put_integration.call_args[1]['uri'])
+      self.assertEqual('methody method', self.method.client.put_integration.call_args[1]['integrationHttpMethod'])
+      self.method.client.put_integration.call_args = []
+
+  @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method')
-  def test_process_request_calls_skips_patching_inherited_cache_values_when_not_using_cache(self, mock_find, mock_vp):
+  def test_process_request_creates_patches_for_uri_and_http_method_for_certain_types(self, mock_find, mock_vp):
+    mock_return = {
+      'methodIntegration': {
+        'httpMethod': 'POST',
+        'uri': 'magical-uri',
+        'passthroughBehavior': 'when_no_templates',
+        'requestParameters': {},
+        'requestTemplates': {}
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_integration': {
+        'http_method': 'totally different',
+        'uri': 'also totally different',
+        'passthrough_behavior': 'when_no_templates',
+        'request_templates': [],
+        'uses_caching': False,
+        'integration_params': [],
+      },
+      'state': 'present'
+    }
+
+    expected = [
+      {'path': '/integrationHttpMethod', 'value': 'totally different', 'op': 'replace'},
+      {'path': '/uri', 'value': 'also totally different', 'op': 'replace'}
+    ]
+
+    for t in ['AWS', 'HTTP', 'AWS_PROXY']:
+      mock_return['methodIntegration']['type'] = t
+      self.method.module.params['method_integration']['integration_type'] = t
+      mock_find.return_value = mock_return
+      self.method.process_request()
+
+      self.assertItemsEqual(expected, self.method.client.update_integration.call_args[1]['patchOperations'])
+      self.method.client.update_integration.call_args = []
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_skips_patching_inherited_cache_values_when_not_using_cache(self, mock_find, mock_vp):
     mock_find.return_value = {
       'methodIntegration': {
         'type': 'XXX',
@@ -445,6 +551,7 @@ class TestApiGwMethod(unittest.TestCase):
         ],
         'cache_namespace': 'cn',
         'cache_key_parameters': [],
+        'content_handling': 'convert_to_text',
         'integration_params': [
           {'name': 'bob', 'location': 'path', 'value': 'sure'},
         ],
@@ -465,7 +572,8 @@ class TestApiGwMethod(unittest.TestCase):
       requestTemplates={'addme': 'addval', 'change/me': 'changeval'},
       passthroughBehavior='when_no_templates',
       cacheNamespace='cn',
-      cacheKeyParameters=[]
+      cacheKeyParameters=[],
+      contentHandling='CONVERT_TO_TEXT'
     )
 
     self.method.process_request()
@@ -489,7 +597,13 @@ class TestApiGwMethod(unittest.TestCase):
   def test_process_request_updates_method_responses_when_present_and_changed(self, mock_find, mock_vp):
     mock_find.return_value = {
       'methodResponses': {
-        '202': {'statusCode': '202', 'responseModels': {'application/json': 'Empty', 'delete': 'me'}},
+        '202': {'statusCode': '202',
+                'responseModels': {'application/json': 'Empty', 'delete': 'me'},
+                'responseParameters': {
+                  'method.response.header.shouldbetrue': False,
+                  'method.response.header.deleteme': True,
+                },
+               },
         '400': {'statusCode': '400'},
         '404': {'statusCode': '404'}
       }
@@ -501,6 +615,9 @@ class TestApiGwMethod(unittest.TestCase):
       'name': 'GET',
       'method_responses': [
         {'status_code': 202,
+          'response_params': [
+            {'name': 'addparam', 'is_required': False},
+            {'name': 'shouldbetrue', 'is_required': True}],
           'response_models': [
             {'content_type': 'application/json', 'model': 'Error'},
             {'content_type': 'add', 'model': 'me'}
@@ -515,6 +632,9 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'replace', 'path': '/responseModels/application~1json', 'value': 'Error'},
       {'op': 'add', 'path': '/responseModels/add', 'value': 'me'},
       {'op': 'remove', 'path': '/responseModels/delete'},
+      {'op': 'replace', 'path': '/responseParameters/method.response.header.shouldbetrue', 'value': 'True'},
+      {'op': 'add', 'path': '/responseParameters/method.response.header.addparam', 'value': 'False'},
+      {'op': 'remove', 'path': '/responseParameters/method.response.header.deleteme'},
     ]
 
     self.method.process_request()
@@ -532,6 +652,7 @@ class TestApiGwMethod(unittest.TestCase):
       resourceId='rsrcid',
       httpMethod='GET',
       statusCode='500',
+      responseParameters={},
       responseModels={}
     )
     self.method.client.delete_method_response.assert_called_once_with(
@@ -550,7 +671,11 @@ class TestApiGwMethod(unittest.TestCase):
       'resource_id': 'rsrcid',
       'name': 'GET',
       'method_responses': [
-        {'status_code': 202, 'response_models': [ {'content_type': 'application/json', 'model': 'Error'}, ]},
+        {
+          'status_code': 202,
+          'response_params': [ {'name': 'param1', 'is_required': False} ],
+          'response_models': [ {'content_type': 'application/json', 'model': 'Error'}, ]
+        },
       ],
       'state': 'present'
     }
@@ -564,6 +689,7 @@ class TestApiGwMethod(unittest.TestCase):
       resourceId='rsrcid',
       httpMethod='GET',
       statusCode='202',
+      responseParameters={'method.response.header.param1': False},
       responseModels={'application/json': 'Error'}
     )
 
@@ -805,6 +931,7 @@ class TestApiGwMethod(unittest.TestCase):
       },
       requestTemplates={'application/json': '{}'},
       passthroughBehavior='ptb',
+      contentHandling='',
       cacheNamespace='cn',
       cacheKeyParameters=['param1', 'param2']
     )
@@ -817,17 +944,22 @@ class TestApiGwMethod(unittest.TestCase):
   def test_process_request_calls_put_method_response_when_method_is_absent(self, mock_find):
     p = [
         {'status_code': 200, 'response_models': [{'content_type': 'ct1', 'model': 'model'},{'content_type': 'ct2'}]},
-        {'status_code': 400},
+        {'status_code': 400, 'response_params': [{'name': 'err_param', 'is_required': True}]},
         {'status_code': 500}
     ]
     self.method.module.params['method_responses'] = p;
     expected = [
       dict(
         restApiId='restid', resourceId='rsrcid', httpMethod='GET',
-        statusCode='200', responseModels={'ct1': 'model', 'ct2': 'Empty'}
+        statusCode='200', responseParameters={}, responseModels={'ct1': 'model', 'ct2': 'Empty'}
       ),
-      dict(restApiId='restid', resourceId='rsrcid', httpMethod='GET', statusCode='400', responseModels={}),
-      dict(restApiId='restid', resourceId='rsrcid', httpMethod='GET', statusCode='500', responseModels={})
+      dict(
+        restApiId='restid', resourceId='rsrcid', httpMethod='GET',
+        statusCode='400', responseParameters={'method.response.header.err_param': True}, responseModels={}),
+      dict(
+        restApiId='restid', resourceId='rsrcid', httpMethod='GET',
+        statusCode='500', responseParameters={}, responseModels={}
+      )
     ]
 
     self.method.process_request()
@@ -909,6 +1041,7 @@ class TestApiGwMethod(unittest.TestCase):
         resourceId='rsrcid',
         httpMethod='GET',
         type='value',
+        contentHandling='',
         requestParameters={},
         requestTemplates={}
     )
@@ -925,6 +1058,7 @@ class TestApiGwMethod(unittest.TestCase):
         resourceId='rsrcid',
         httpMethod='GET',
         statusCode='200',
+        responseParameters={},
         responseModels={}
     )
     self.method.module.fail_json.assert_called_once_with(
@@ -1016,7 +1150,7 @@ class TestApiGwMethod(unittest.TestCase):
           'delete_keys': ['method_integration.http_method'],
           'error': {
             'param': 'method_integration',
-            'msg': "http_method must be provided when integration_type is 'AWS' or 'HTTP'"
+            'msg': "http_method must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
           }
         },
         {
@@ -1024,7 +1158,15 @@ class TestApiGwMethod(unittest.TestCase):
           'delete_keys': ['method_integration.http_method'],
           'error': {
             'param': 'method_integration',
-            'msg': "http_method must be provided when integration_type is 'AWS' or 'HTTP'"
+            'msg': "http_method must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
+          }
+        },
+        {
+          'changes': {'method_integration': {'integration_type': 'AWS_PROXY'}},
+          'delete_keys': ['method_integration.http_method'],
+          'error': {
+            'param': 'method_integration',
+            'msg': "http_method must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
           }
         },
         {
@@ -1032,7 +1174,7 @@ class TestApiGwMethod(unittest.TestCase):
           'delete_keys': ['method_integration.uri'],
           'error': {
             'param': 'method_integration',
-            'msg': "uri must be provided when integration_type is 'AWS' or 'HTTP'"
+            'msg': "uri must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
           }
         },
         {
@@ -1040,7 +1182,15 @@ class TestApiGwMethod(unittest.TestCase):
           'delete_keys': ['method_integration.uri'],
           'error': {
             'param': 'method_integration',
-            'msg': "uri must be provided when integration_type is 'AWS' or 'HTTP'"
+            'msg': "uri must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
+          }
+        },
+        {
+          'changes': {'method_integration': {'integration_type': 'AWS_PROXY'}},
+          'delete_keys': ['method_integration.uri'],
+          'error': {
+            'param': 'method_integration',
+            'msg': "uri must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'"
           }
         },
         {
@@ -1140,6 +1290,7 @@ class TestApiGwMethod(unittest.TestCase):
                        uses_caching=dict(required=False, default=False, type='bool'),
                        cache_namespace=dict(required=False, default=''),
                        cache_key_parameters=dict(required=False, type='list', default=[]),
+                       content_handling=dict(required=False, default='', choices=['convert_to_binary', 'convert_to_text', '']),
                        integration_params=dict(
                          type='list',
                          required=False,
@@ -1153,6 +1304,13 @@ class TestApiGwMethod(unittest.TestCase):
                        type='list',
                        default=[],
                        status_code=dict(required=True),
+                       response_params=dict(
+                         type='list',
+                         required=False,
+                         default=[],
+                         name=dict(required=True),
+                         is_required=dict(required=True, type='bool')
+                       ),
                        response_models=dict(
                          type='list',
                          required=False,

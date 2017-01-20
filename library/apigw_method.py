@@ -79,13 +79,13 @@ options:
         choices: ['AWS', 'MOCK', 'HTTP', 'HTTP_PROXY', 'AWS_PROXY']
         required: False
       http_method:
-        description: Method used by the integration.  This is required when C(integration_type) is 'HTTP' or 'AWS'.
+        description: Method used by the integration.  This is required when C(integration_type) is 'HTTP', 'AWS_PROXY', or 'AWS'.
         type: 'string'
         default: 'POST'
         choices: ['POST', 'GET', 'PUT']
         required: False
       uri:
-        description: The URI of the integration input.  This field is required when C(integration_type) is 'HTTP' or 'AWS'.
+        description: The URI of the integration input.  This field is required when C(integration_type) is 'HTTP', 'AWS_PROXY', or 'AWS'.
         type: 'string'
         default: None
         required: False
@@ -129,6 +129,12 @@ options:
         type: 'list'
         default: []
         required: False
+      content_handling:
+        description: Specifies how to handle request payload content type conversions
+        type: 'string'
+        default: ''
+        required: False
+        choices: ['', 'convert_to_binary', 'convert_to_text']
       integration_params:
         description: List of dictionaries that represent parameters passed from the method request to the back end.
         type: 'list'
@@ -159,6 +165,20 @@ options:
         type: 'string'
         default: None
         required: False
+      response_params:
+        description: List of dictionaries defining header fields that are available in the integration response
+        type: 'list'
+        default: []
+        required: False
+        options:
+          name:
+            description: A unique name for this response parameter
+            type: 'string'
+            required: True
+          is_required:
+            description: Specifies if the field is required or not
+            type: 'bool'
+            required: True
       response_models:
         description: List of dictionaries that specify Model resources used for the response's content type.
         type: 'list'
@@ -497,6 +517,7 @@ def put_integration(params):
     restApiId=params.get('rest_api_id'),
     resourceId=params.get('resource_id'),
     httpMethod=params.get('name'),
+    contentHandling=params['method_integration'].get('content_handling', '').upper(),
     type=params['method_integration'].get('integration_type', 'AWS'),
     requestParameters=param_transformer(params['method_integration'].get('integration_params', []), 'request', 'integration'),
     requestTemplates=add_templates(params['method_integration'].get('request_templates', []))
@@ -512,7 +533,7 @@ def put_integration(params):
   if params.get('method_integration', {}).get('credentials', '') != '':
     optional_map['credentials'] = 'credentials'
 
-  if params['method_integration'].get('integration_type', 'AWS') in ['AWS', 'HTTP']:
+  if params['method_integration'].get('integration_type', 'AWS') in ['AWS', 'HTTP', 'AWS_PROXY']:
     optional_map['uri'] = 'uri'
     optional_map['http_method'] = 'integrationHttpMethod'
 
@@ -524,17 +545,23 @@ def update_integration(method, params):
   patches = {}
 
   mi_params = params.get('method_integration', {})
+  mi_params['content_handling'] = mi_params.get('content_handling', '').upper()
 
   param_map = {
     'passthrough_behavior': 'passthroughBehavior',
     'integration_type': 'type',
+    'content_handling': 'contentHandling',
   }
 
-  if params.get('method_integration', {}).get('credentials', '') != '':
+  if mi_params.get('credentials', '') != '':
     param_map['credentials'] = 'credentials'
 
+  # Don't patch since boto will suppress the field if not set
+  if mi_params.get('content_handling') == '' and 'contentHandling' not in method.get('methodIntegration', {}):
+    param_map.pop('content_handling', None)
+
   ops = []
-  if params.get('method_integration', {}).get('integration_type', 'AWS').upper() in ['AWS', 'HTTP']:
+  if mi_params.get('integration_type', 'AWS').upper() in ['AWS', 'HTTP', 'AWS_PROXY']:
     param_map['uri'] = 'uri'
 
     # stupid special snowflake crap
@@ -542,11 +569,10 @@ def update_integration(method, params):
     if ops:
       ops[0]['path'] = '/integrationHttpMethod'
 
-
   if mi_params.get('uses_caching', False):
     param_map['cache_namespace'] = 'cacheNamespace'
 
-  ops = patch_builder(method.get('methodIntegration', {}), mi_params, param_map)
+  ops.extend(patch_builder(method.get('methodIntegration', {}), mi_params, param_map))
 
   if mi_params.get('uses_caching', False) and 'cache_key_parameters' in mi_params:
     new_params = []
@@ -592,10 +618,17 @@ def put_method_response(params):
       httpMethod=params.get('name'),
       statusCode=str(mr_params.get('status_code'))
     )
+
     resp_models = {}
     for model in mr_params.get('response_models', []):
       resp_models[model.get('content_type')] = model.get('model', 'Empty')
     kwargs['responseModels'] = resp_models
+
+    resp_params = {}
+    for resp in mr_params.get('response_params', []):
+      resp_params["method.response.header.{}".format(resp.get('name'))] = resp.get('is_required')
+    kwargs['responseParameters'] = resp_params
+
     args.append(kwargs)
 
   return args
@@ -612,9 +645,11 @@ def update_method_response(method, params):
   # Coerce params into struct compatible with boto's response
   mr_dict = {}
   for p in params.get('method_responses', []):
-    mr_dict[str(p['status_code'])] = {}
+    mr_dict[str(p['status_code'])] = {'models': {}, 'params': {}}
     for model in p.get('response_models', []):
-      mr_dict[str(p['status_code'])][model['content_type']] = model.get('model', 'Empty')
+      mr_dict[str(p['status_code'])]['models'][model['content_type']] = model.get('model', 'Empty')
+    for rp in p.get('response_params', []):
+      mr_dict[str(p['status_code'])]['params'][rp['name']] = rp['is_required']
 
   mr_aws = method.get('methodResponses', {})
 
@@ -627,17 +662,35 @@ def update_method_response(method, params):
         httpMethod=params.get('name'),
         statusCode=code
       )
+
       resp_models = {}
-      for content_type, model in mr_dict[code].iteritems():
+      for content_type, model in mr_dict[code]['models'].iteritems():
         resp_models[content_type] = model
       kwargs['responseModels'] = resp_models
+
+      resp_params = {}
+      for param_name, required in mr_dict[code]['params'].iteritems():
+        resp_params["method.response.header.{}".format(param_name)] = required
+      kwargs['responseParameters'] = resp_params
+
       ops['creates'].append(kwargs)
     else:
-      for content_type, model in mr_dict[code].iteritems():
+      for content_type, model in mr_dict[code]['models'].iteritems():
         if content_type not in mr_aws[code]['responseModels']:
           patch_dict.setdefault(code, []).append(create_patch('add', content_type, prefix='responseModels', value=model))
         elif model != mr_aws[code]['responseModels'][content_type]:
           patch_dict.setdefault(code, []).append(create_patch('replace', content_type, prefix='responseModels', value=model))
+
+      for param, required in mr_dict[code]['params'].iteritems():
+        full_param = "method.response.header.{}".format(param)
+        if full_param not in mr_aws[code]['responseParameters']:
+          patch_dict.setdefault(code, []).append(
+            create_patch('add', full_param, prefix='responseParameters', value=str(required))
+          )
+        elif str(required).lower() != str(mr_aws[code]['responseParameters'][full_param]).lower():
+          patch_dict.setdefault(code, []).append(
+            create_patch('replace', full_param, prefix='responseParameters', value=str(required))
+          )
 
   # Find codes and response models that need to be deleted
   for code in mr_aws:
@@ -649,10 +702,13 @@ def update_method_response(method, params):
         statusCode=code
       )
       ops['deletes'].append(kwargs)
-    elif 'responseModels' in mr_aws[code]:
-      for content_type, model in mr_aws[code]['responseModels'].iteritems():
-        if content_type not in mr_dict[code]:
+    else:
+      for content_type, model in mr_aws[code].get('responseModels', {}).iteritems():
+        if content_type not in mr_dict[code]['models']:
           patch_dict.setdefault(code, []).append(create_patch('remove', content_type, prefix='responseModels'))
+      for param, required in mr_aws[code].get('responseParameters', {}).iteritems():
+        if param.split('.')[-1] not in mr_dict[code]['params']:
+          patch_dict.setdefault(code, []).append(create_patch('remove', param, prefix='responseParameters'))
 
   for code in patch_dict:
     ops['updates'].append(dict(
@@ -852,6 +908,7 @@ class ApiGwMethod:
           uses_caching=dict(required=False, default=False, type='bool'),
           cache_namespace=dict(required=False, default=''),
           cache_key_parameters=dict(required=False, type='list', default=[]),
+          content_handling=dict(required=False, default='', choices=['convert_to_binary', 'convert_to_text', '']),
           integration_params=dict(
             type='list',
             required=False,
@@ -865,6 +922,13 @@ class ApiGwMethod:
           type='list',
           default=[],
           status_code=dict(required=True),
+          response_params=dict(
+            type='list',
+            required=False,
+            default=[],
+            name=dict(required=True),
+            is_required=dict(required=True, type='bool')
+          ),
           response_models=dict(
             type='list',
             required=False,
@@ -913,11 +977,11 @@ class ApiGwMethod:
     if p['authorization_type'] == 'CUSTOM' and 'authorizer_id' not in p:
       raise InvalidInputError('authorizer_id', "authorizer_id must be provided when authorization_type is 'CUSTOM'")
 
-    if p['method_integration']['integration_type'] in ['AWS', 'HTTP']:
+    if p['method_integration']['integration_type'] in ['AWS', 'HTTP', 'AWS_PROXY']:
       if 'http_method' not in p['method_integration']:
-        raise InvalidInputError('method_integration', "http_method must be provided when integration_type is 'AWS' or 'HTTP'")
+        raise InvalidInputError('method_integration', "http_method must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'")
       elif 'uri' not in p['method_integration']:
-        raise InvalidInputError('method_integration', "uri must be provided when integration_type is 'AWS' or 'HTTP'")
+        raise InvalidInputError('method_integration', "uri must be provided when integration_type is 'AWS', 'AWS_PROXY', or 'HTTP'")
 
     for ir in p['integration_responses']:
       if 'is_default' in ir and ir['is_default'] and 'pattern' in ir:
