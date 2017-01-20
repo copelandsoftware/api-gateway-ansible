@@ -545,17 +545,23 @@ def update_integration(method, params):
   patches = {}
 
   mi_params = params.get('method_integration', {})
+  mi_params['content_handling'] = mi_params.get('content_handling', '').upper()
 
   param_map = {
     'passthrough_behavior': 'passthroughBehavior',
     'integration_type': 'type',
+    'content_handling': 'contentHandling',
   }
 
-  if params.get('method_integration', {}).get('credentials', '') != '':
+  if mi_params.get('credentials', '') != '':
     param_map['credentials'] = 'credentials'
 
+  # Don't patch since boto will suppress the field if not set
+  if mi_params.get('content_handling') == '' and 'contentHandling' not in method.get('methodIntegration', {}):
+    param_map.pop('content_handling', None)
+
   ops = []
-  if params.get('method_integration', {}).get('integration_type', 'AWS').upper() in ['AWS', 'HTTP', 'AWS_PROXY']:
+  if mi_params.get('integration_type', 'AWS').upper() in ['AWS', 'HTTP', 'AWS_PROXY']:
     param_map['uri'] = 'uri'
 
     # stupid special snowflake crap

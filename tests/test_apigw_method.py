@@ -294,6 +294,36 @@ class TestApiGwMethod(unittest.TestCase):
 
   @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method')
+  def test_process_skips_update_when_content_handling_missing_from_aws_and_default_from_user(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'methodIntegration': {
+        'type': 'AWS',
+        'httpMethod': 'POST',
+        'uri': 'magical-uri',
+        'passthroughBehavior': 'when_no_templates',
+        'credentials': 'existing creds',
+        'cacheNamespace': '',
+        'cacheKeyParameters': [],
+      }
+    }
+
+    self.method.module.params = {
+      'method_integration': {
+        'integration_type': 'AWS',
+        'http_method': 'POST',
+        'uri': 'magical-uri',
+        'credentials': 'existing creds',
+        'passthrough_behavior': 'when_no_templates',
+      },
+      'state': 'present'
+    }
+
+    self.method.process_request()
+
+    self.assertEqual(0, self.method.client.update_integration.call_count)
+
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
   def test_process_request_calls_update_integration_when_present_and_changed(self, mock_find, mock_vp):
     mock_find.return_value = {
       'methodIntegration': {
@@ -303,6 +333,7 @@ class TestApiGwMethod(unittest.TestCase):
         'passthroughBehavior': 'when_no_templates',
         'credentials': 'existing creds',
         'requestParameters': {'integration.request.path.bob': 'not-sure'},
+        'contentHandling': 'CONVERT_TO_TEXT',
         'cacheNamespace': '',
         'cacheKeyParameters': [u'ckp1', u'ckp2'],
         'requestTemplates': {
@@ -341,6 +372,7 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'replace', 'path': '/uri', 'value': 'magical-uri'},
       {'op': 'replace', 'path': '/cacheNamespace', 'value': 'cn'},
       {'op': 'replace', 'path': '/credentials', 'value': 'new creds'},
+      {'op': 'replace', 'path': '/contentHandling', 'value': ''},
       {'op': 'replace', 'path': '/requestParameters/integration.request.path.bob', 'value': 'sure'},
       {'op': 'add', 'path': '/requestTemplates/addme', 'value': 'addval'},
       {'op': 'remove', 'path': '/requestTemplates/deleteme'},
