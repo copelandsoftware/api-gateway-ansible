@@ -12,19 +12,19 @@
 #
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 Brian Felton, Emerson
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -36,26 +36,32 @@
 
 DOCUMENTATION='''
 module: apigw_usage_plan_key
-description: An Ansible module to add, update, or remove UsagePlanKey
-  resources for AWS API Gateway.
+author: Brian Felton (@bjfelton)
+short_description: Add or remove UsagePlanKey resources
+description:
+- Create or remove Usage Plan Key resources
 version_added: "2.2"
 options:
   usage_plan_id:
-    description: Id of the UsagePlan resource to which a key will be associated
+    description:
+    - Id of the UsagePlan resource to which a key will be associated
     type: string
     required: True
   api_key_id:
-    description: Id of the UsagePlan resource to which a key will be associated
+    description:
+    - Id of the UsagePlan resource to which a key will be associated
     type: string
     required: True
   key_type:
-    description: Type of the api key.  You can choose any value you like, so long as you choose 'API_KEY'
+    description:
+    - Type of the api key.  You can choose any value you like, so long as you choose 'API_KEY'.
     type: string
     default: 'API_KEY'
     required: False
     choices: ['API_KEY']
   state:
-    description: Should usage_plan_key exist or not
+    description:
+    - Should usage_plan_key exist or not
     choices: ['present', 'absent']
     default: 'present'
     required: False
@@ -64,9 +70,7 @@ requirements:
     - boto
     - boto3
 notes:
-    - This module requires that you have boto and boto3 installed and that your
-      credentials are created or stored in a way that is compatible (see
-      U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
+    - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''

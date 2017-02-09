@@ -12,19 +12,19 @@
 #
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 Brian Felton, Emerson
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -36,241 +36,292 @@
 
 DOCUMENTATION='''
 module: apigw_method
+author: Brian Felton (@bjfelton)
+short_description: Add, update, or remove AWS API Gateway Method resources
 description:
-  - An Ansible module to add, update, or remove AWS API Gateway method resources
+- CRUD operations for Method resources
+- Covers Method, Method Integration, Method Response, and Integration Response APIs
+- Utilizes non-standard argument structure due to the complexity of the module contract
 version_added: "2.2"
 options:
   name:
-    description: The name of the method on which to operate
+    description:
+    - The name of the method on which to operate
     type: 'string'
     choices: ['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'HEAD']
     required: True
   rest_api_id:
-    description: The id of the parent rest api
+    description:
+    - The id of the parent rest api
     type: 'string'
     required: True
   resource_id:
-    description: The id of the resource to which the method belongs
+    description:
+    - The id of the resource to which the method belongs
     type: 'string'
     required: True
   authorization_type:
-    description: The type of authorization used for the method
+    description:
+    - The type of authorization used for the method
     type: 'string'
     default: 'NONE'
     required: False
   authorizer_id:
-    description: The id of an Authorizer to use on this method (required when C(authorization_type) is 'CUSTOM').
+    description:
+    - The id of an Authorizer to use on this method (required when C(authorization_type) is 'CUSTOM').
     type: 'string'
     default: None
     required: False
   api_key_required:
-    description: Specifies if an api key is required
+    description:
+    - Specifies if an api key is required
     type: 'bool'
     default: False
     required: False
   request_params:
-    description: List of dictionaries specifying method request parameters that can be accepted by this method
+    description:
+    - List of dictionaries specifying method request parameters that can be accepted by this method
     type: 'list'
     default: []
     required: False
     options:
       name:
-        description: The name of the request parameter
+        description:
+        - The name of the request parameter
         type: 'string'
         required: True
       location:
-        description: Identifies where in the request to find the parameter
+        description:
+        - Identifies where in the request to find the parameter
         type: 'string'
         choices: ['querystring', 'path', 'header']
         required: True
       param_required:
-        description: Specifies if the field is required or optional
+        description:
+        - Specifies if the field is required or optional
         type: 'bool'
         required: True
   method_integration:
-    description: Dictionary of parameters that specify how and to which resource API Gateway should map requests. This is required when C(state) is 'present'.
+    description:
+    - Dictionary of parameters that specify how and to which resource API Gateway should map requests. This is required when C(state) is 'present'.
     type: 'dict'
     default: {}
     required: False
     options:
       integration_type:
-        description: The type of method integration
+        description:
+        - The type of method integration
         type: 'string'
         default: 'AWS'
         choices: ['AWS', 'MOCK', 'HTTP', 'HTTP_PROXY', 'AWS_PROXY']
         required: False
       http_method:
-        description: Method used by the integration.  This is required when C(integration_type) is 'HTTP', 'AWS_PROXY', or 'AWS'.
+        description:
+        - Method used by the integration.  This is required when C(integration_type) is 'HTTP', 'AWS_PROXY', or 'AWS'.
         type: 'string'
         default: 'POST'
         choices: ['POST', 'GET', 'PUT']
         required: False
       uri:
-        description: The URI of the integration input.  This field is required when C(integration_type) is 'HTTP', 'AWS_PROXY', or 'AWS'.
+        description:
+        - The URI of the integration input.  This field is required when C(integration_type) is 'HTTP', 'AWS_PROXY', or 'AWS'.
         type: 'string'
         default: None
         required: False
       credentials:
-        description: If present, use these credentials for the integration
+        description:
+        - If present, use these credentials for the integration
         type: 'string'
         default: None
         required: False
       passthrough_behavior:
-        description: Specifies the pass-through behaving for incoming requests based on the Content-Type header in the request and the available mapping templates specified in C(request_templates).
+        description:
+        - Specifies the pass-through behaving for incoming requests based on the Content-Type header in the request and the available mapping templates specified in C(request_templates).
         type: 'string'
         default: 'when_no_templates'
         choices: ['when_no_templates', 'when_no_match', 'never']
         required: False
       request_templates:
-        description: List of dictionaries that represent Velocity templates that are applied to the request payload.
+        description:
+        - List of dictionaries that represent Velocity templates that are applied to the request payload.
         type: 'list'
         default: []
         required: False
         options:
           content_type:
-            description: The type of the content for this template (e.g. application/json)
+            description:
+            - The type of the content for this template (e.g. application/json)
             type: 'string'
             required: True
           template:
-            description: The template to apply
+            description:
+            - The template to apply
             type: 'string'
             required: True
       uses_caching:
-        description: Flag that indicates if this method uses caching.  Specifying false ensures that caching is disabled for the method if it is otherwise enabled .
+        description:
+        - Flag that indicates if this method uses caching.  Specifying false ensures that caching is disabled for the method if it is otherwise enabled .
         type: 'bool'
         default: False
         required: False
       cache_namespace:
-        description: Specifies input cache namespace
+        description:
+        - Specifies input cache namespace
         type: 'string'
         default: ''
         required: False
       cache_key_parameters:
-        description: Specifies input cache key parameters
+        description:
+        - Specifies input cache key parameters
         type: 'list'
         default: []
         required: False
       content_handling:
-        description: Specifies how to handle request payload content type conversions
+        description:
+        - Specifies how to handle request payload content type conversions
         type: 'string'
         default: ''
         required: False
         choices: ['', 'convert_to_binary', 'convert_to_text']
       integration_params:
-        description: List of dictionaries that represent parameters passed from the method request to the back end.
+        description:
+        - List of dictionaries that represent parameters passed from the method request to the back end.
         type: 'list'
         default: []
         required: False
         options:
           name:
-            description: A unique name for this request parameter
+            description:
+            - A unique name for this request parameter
             type: 'string'
             required: True
           location:
-            description: Where in the request to find the parameter
+            description:
+            - Where in the request to find the parameter
             type: 'string'
             choices: ['querystring', 'path', 'header']
             required: True
           value:
-            description: The value to assign to the parameter
+            description:
+            - The value to assign to the parameter
             type: 'string'
             required: True
   method_responses:
-    description: List of dictionaries specifying mapping of response parameters to be passed back to the caller.  This section is required when C(state) is 'present'.
+    description:
+    - List of dictionaries specifying mapping of response parameters to be passed back to the caller.  This section is required when C(state) is 'present'.
     type: 'list'
     default: []
     required: False
     options:
       status_code:
-        description: The status code used to map the method response
+        description:
+        - The status code used to map the method response
         type: 'string'
         default: None
         required: False
       response_params:
-        description: List of dictionaries defining header fields that are available in the integration response
+        description:
+        - List of dictionaries defining header fields that are available in the integration response
         type: 'list'
         default: []
         required: False
         options:
           name:
-            description: A unique name for this response parameter
+            description:
+            - A unique name for this response parameter
             type: 'string'
             required: True
           is_required:
-            description: Specifies if the field is required or not
+            description:
+            - Specifies if the field is required or not
             type: 'bool'
             required: True
       response_models:
-        description: List of dictionaries that specify Model resources used for the response's content type.
+        description:
+        - List of dictionaries that specify Model resources used for the response's content type.
         type: 'list'
         default: []
         required: False
         options:
           content_type:
-            description: The type of the content for this model (e.g. application/json)
+            description:
+            - The type of the content for this model (e.g. application/json)
             type: 'string'
             required: True
           model:
-            description: Type of the model
+            description:
+            - Type of the model
             type: 'string'
             default: 'Empty'
             choices: ['Empty', 'Error']
             required: False
   integration_responses:
-    description: List of dictionaries the map backend responses to the outbound response.  This section is required when C(state) is 'present'.
+    description:
+    - List of dictionaries the map backend responses to the outbound response.  This section is required when C(state) is 'present'.
     type: 'list'
     default: []
     required: False
     options:
       status_code:
-        description: The status code used to map the integration response
+        description:
+        - The status code used to map the integration response
         type: 'string'
         required: True
       is_default:
-        description: Flag to specify if this is the default response code
+        description:
+        - Flag to specify if this is the default response code
         type: 'bool'
         default: False
         required: False
       pattern:
-        description: Selection pattern of the integration response.  This field is required when C(is_default) is False.  This field must be omitted when C(is_default) is True.
+        description:
+        - Selection pattern of the integration response.  This field is required when C(is_default) is False.  This field must be omitted when C(is_default) is True.
         type: 'string'
         default: None
         required: False
       response_params:
-        description: List of dictionaries mapping fields in the response to integration response header values, static values, or a JSON expression from the ingration response body.
+        description:
+        - List of dictionaries mapping fields in the response to integration response header values, static values, or a JSON expression from the integration response body.
         type: 'list'
         default: []
         required: False
         options:
           name:
-            description: A unique name for this response parameter
+            description:
+            - A unique name for this response parameter
             type: 'string'
             required: True
           location:
-            description: Where in the response to find the parameter
+            description:
+            - Where in the response to find the parameter
             type: 'string'
             choices: ['body', 'header']
             required: True
           value:
-            description: The value to assign to the parameter
+            description:
+            - The value to assign to the parameter
             type: 'string'
             required: True
       response_templates:
-        description: Response templates for the integration response
+        description:
+        - Response templates for the integration response
         type: 'list'
         default: []
         required: False
         options:
           content_type:
-            description: The type of the content for this template (e.g. application/json)
+            description:
+            - The type of the content for this template (e.g. application/json)
             type: 'string'
             required: True
           template:
-            description: The template to apply
+            description:
+            - The template to apply
             type: 'string'
             required: True
   state:
-    description: Determine whether to assert if resource should exist or not
+    description:
+    - Determine whether to assert if resource should exist or not
     type: 'string'
     choices: ['present', 'absent']
     default: 'present'
@@ -281,9 +332,10 @@ requirements:
     - boto
     - boto3
 notes:
-    - This module requires that you have boto and boto3 installed and that your
-      credentials are created or stored in a way that is compatible (see
-      U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
+  - This module is a beast in that it's covering four separate APIs for the four API Gateway stages
+  - Arguments are presented in a non-idiomatic manner -- arguments are grouped under dictionaries in order to better organize arguments to the four separate stages
+  - While the majority of the Method, Method Integration, Method Response, and Integration Response APIs are covered, there are likely gaps.  Issues and PRs are welcome.
+  - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''

@@ -13,19 +13,19 @@
 #
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 Brian Felton, Emerson
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -37,35 +37,45 @@
 
 DOCUMENTATION='''
 module: apigw_deployment
-description: An Ansible module to create an apigateway Deployment (WARNING: This module is not idempotent)
+author: Brian Felton (@bjfelton)
+short_description: Create an apigateway Deployment
+description:
+- Creates Deployments (no other operations)
+- A deployment is always created -- this module is not idempotent
 version_added: "2.2"
 options:
   name:
-    description: The name of the stage to deploy
+    description:
+    - The name of the stage to deploy
     type: 'string'
     required: True
     aliases: ['stage_name']
   rest_api_id:
-    description: The id of the parent rest api
+    description:
+    - The id of the parent rest api
     type: 'string'
     required: True
   stage_description:
-    description: The description of the stage resource for the Deployment resource to create
+    description:
+    - The description of the stage resource for the Deployment resource to create
     type: 'string'
     default: ''
     required: False
   description:
-    description: The description for the Deployment resource to create
+    description:
+    - The description for the Deployment resource to create
     type: 'string'
     default: ''
     required: False
   cache_cluster_enabled:
-    description: Enables a cache cluster for the resource if True
+    description:
+    - Enables a cache cluster for the resource if True
     type: 'bool'
     default: False
     required: False
   cache_cluster_size:
-    description: Specifies the size of the cache cluster
+    description:
+    - Specifies the size of the cache cluster
     type: 'string'
     default: None
     choices: ['0.5','1.6','6.1','13.5','28.4','58.2','118','237']
@@ -76,9 +86,8 @@ requirements:
     - boto
     - boto3
 notes:
-    - This module requires that you have boto and boto3 installed and that your
-      credentials are created or stored in a way that is compatible (see
-      U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
+    - WARNING: This module is not idempotent
+    - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''

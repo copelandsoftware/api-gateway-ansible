@@ -13,19 +13,19 @@
 #
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 Brian Felton, Emerson
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -37,56 +37,70 @@
 
 DOCUMENTATION='''
 module: apigw_stage
-description: An Ansible module to update or remove an apigateway Stage
+author: Brian Felton (@bjfelton)
+short_description: An Ansible module to update or remove an apigateway Stage
+description:
+- Updates or removes API Gateway Stage resources
+- Only processes 'replace' patches for updates
 version_added: "2.2"
 options:
   name:
-    description: The name of the stage to deploy
+    description:
+    - The name of the stage to deploy
     type: 'string'
     required: True
     aliases: ['stage_name']
   rest_api_id:
-    description: The id of the parent rest api
+    description:
+    - The id of the parent rest api
     type: 'string'
     required: True
   description:
-    description: The description for the Stage resource to create
+    description:
+    - The description for the Stage resource to create
     type: 'string'
     default: None
     required: False
   cache_cluster_enabled:
-    description: Cache cluster setting for the Stage resource
+    description:
+    - Cache cluster setting for the Stage resource
     type: 'bool'
     default: None
     required: False
   cache_cluster_size:
-    description: Specifies the size of the cache cluster for the Stage resource
+    description:
+    - Specifies the size of the cache cluster for the Stage resource
     type: 'string'
     default: None
     choices: ['0.5','1.6','6.1','13.5','28.4','58.2','118','237']
     required: False
   method_settings:
-    description: List of dictionaries capturing methods to be patched
+    description:
+    - List of dictionaries capturing methods to be patched
     type: 'list'
     default: []
     required: False
     options:
       method_name:
-        description: Name of the method to be patched
+        description:
+        - Name of the method to be patched
         type: 'string'
         required: True
       method_verb:
-        description: Verb of the method to be patched
+        description:
+        - Verb of the method to be patched
         type: 'string'
         choices: ['GET', 'PUT', 'POST', 'DELETE', 'HEAD', 'PATCH', 'OPTIONS']
         required: True
       caching_enabled:
-        description: Flag indicating if caching should be enabled
+        description:
+        - Flag indicating if caching should be enabled
         type: 'bool'
         default: False
         required: False
   state:
-    description: State of the stage resource
+    description:
+    - State of the stage resource
     type: 'string'
     default: 'present'
     choices: ['present', 'absent']
@@ -97,9 +111,8 @@ requirements:
     - boto
     - boto3
 notes:
-    - This module requires that you have boto and boto3 installed and that your
-      credentials are created or stored in a way that is compatible (see
-      U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
+    - This module does not currently create stages, as these are a byproduct of executing deployments.
+    - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''

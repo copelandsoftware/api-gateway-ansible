@@ -15,19 +15,19 @@
 #       for the ApiKey's id by its name.
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 Brian Felton, Emerson
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -39,36 +39,46 @@
 
 DOCUMENTATION='''
 module: apigw_api_key
-description: An Ansible module to add, update, or remove ApiKey
-  resources for AWS API Gateway.
+author: Brian Felton (@bjfelton)
+short_description: Add, update, or remove ApiKey resources
+description:
+  - Create if no ApiKey resource is found matching the provided name
+  - Delete ApiKey resource matching the provided name
+  - Updates I(enabled) and I(description)
 version_added: "2.2"
 options:
   name:
-    description: The domain name of the ApiKey resource on which to operate
+    description:
+    - The domain name of the ApiKey resource on which to operate
     type: string
     required: True
   value:
-    description: Value of the api key. Required for create.
+    description:
+    - Value of the api key. Required for create.
     type: string
     default: None
     required: False
   description:
-    description: ApiKey description
+    description:
+    - ApiKey description
     type: string
     default: None
     required: False
   enabled:
-    description: Can ApiKey be used by called
+    description:
+    - Can ApiKey be used by called
     type: bool
     default: False
     required: False
   generate_distinct_id:
-    description: Specifies whether key identifier is distinct from created apikey value
+    description:
+    - Specifies whether key identifier is distinct from created apikey value
     type: bool
     default: False
     required: False
   state:
-    description: Should api_key exist or not
+    description:
+    - Should api_key exist or not
     choices: ['present', 'absent']
     default: 'present'
     required: False
@@ -77,9 +87,8 @@ requirements:
     - boto
     - boto3
 notes:
-    - This module requires that you have boto and boto3 installed and that your
-      credentials are created or stored in a way that is compatible (see
-      U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
+    - While it is possible via the boto api to update the ApiKey's name, this module does not support this functionality since it searches for the ApiKey's id by its name.
+    - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''

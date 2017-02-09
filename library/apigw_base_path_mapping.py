@@ -12,19 +12,19 @@
 #
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 Brian Felton, Emerson
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -36,31 +36,35 @@
 
 DOCUMENTATION='''
 module: apigw_base_path_mapping
-description: An Ansible module to add, update, or remove Base Path Mapping
-  resources for AWS API Gateway.
+author: Brian Felton (@bjfelton)
+short_description: Add, update, or remove Base Path Mapping resources
+description:
+- Basic CRUD operations for Base Path Mapping resources
 version_added: "2.2"
 options:
   name:
-    description: The domain name of the Base Path Mapping resource on which to operate
+    description:
+    - The domain name of the Base Path Mapping resource on which to operate
     required: True
     aliases: ['domain_name']
   rest_api_id:
-    description: The id of the Rest API to which this BasePathMapping belongs.
-      Required to create a base path mapping.
+    description:
+    - The id of the Rest API to which this BasePathMapping belongs.  Required to create a base path mapping.
     default: None
     required: False
   base_path:
-    description: The base path name that callers of the api must provide.
-      Required when updating or deleting the mapping.
+    description:
+    - The base path name that callers of the api must provide.  Required when updating or deleting the mapping.
     default: (none)
     required: False
   stage:
-    description: The name of the api's stage to which to apply this mapping.
-      Required to create the base path mapping.
+    description:
+    - The name of the api's stage to which to apply this mapping.  Required to create the base path mapping.
     default: None
     required: False
   state:
-    description: Should base_path_mapping exist or not
+    description:
+    - Should base_path_mapping exist or not
     choices: ['present', 'absent']
     default: 'present'
     required: False
@@ -69,9 +73,7 @@ requirements:
     - boto
     - boto3
 notes:
-    - This module requires that you have boto and boto3 installed and that your
-      credentials are created or stored in a way that is compatible (see
-      U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
+    - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''

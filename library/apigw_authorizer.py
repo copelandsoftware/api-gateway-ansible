@@ -12,19 +12,19 @@
 #
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 Brian Felton, Emerson
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -36,33 +36,40 @@
 
 DOCUMENTATION='''
 module: apigw_authorizer
+author: Brian Felton (@bjfelton)
+short_description: Add, update, or remove Authorizer resources
 description:
-  - An Ansible module to add, update, or remove Authorizer resources for
-    AWS API Gateway.
+  - Standard CRUD operations for Authorizer resources
 version_added: "2.2"
 options:
   rest_api_id:
-    description: The id of the Rest API to which this Authorizer belongs
+    description:
+    - The id of the Rest API to which this Authorizer belongs
     required: True
   name:
-    description: The name of the authorizer on which to operate
+    description:
+    - The name of the authorizer on which to operate
     required: True
     aliases: ['authorizer']
   type:
-    description: Type of the authorizer (required when C(state) is 'present')
+    description:
+    - Type of the authorizer (required when C(state) is 'present')
     required: False
     choices: ['TOKEN', 'COGNITO_USER_POOLS']
     default: None
   uri:
-    description: The autorizer's uri (required with C(state) is 'present')
+    description:
+    - The autorizer's uri (required with C(state) is 'present')
     required: False
     default: None
   identity_source:
-    description: Source of the identity in an incoming request (required when C(state) is 'present')
+    description:
+    - Source of the identity in an incoming request (required when C(state) is 'present')
     required: False
     default: None
   identity_validation_expression:
-    description: Validation expression for the incoming entity
+    description:
+    - Validation expression for the incoming entity
     required: False
     default: ''
   provider_arns:
@@ -70,19 +77,23 @@ options:
     required: False
     default: []
   auth_type:
-    description: Optional customer-defined field used in Swagger docs - has no functional impact
+    description:
+    - Optional customer-defined field used in Swagger docs - has no functional impact
     required: False
     default: None
   credentials:
-    description: Specifies credentials required for the authorizer, if any
+    description:
+    - Specifies credentials required for the authorizer, if any
     required: False
     default: None
   result_ttl_seconds:
-    description: The TTL of cached authorizer results in seconds
+    description:
+    - The TTL of cached authorizer results in seconds
     required: False
     default: 0
   state:
-    description: Should authorizer exist or not
+    description:
+    - Should authorizer exist or not
     choices: ['present', 'absent']
     default: 'present'
     required: False
@@ -91,9 +102,7 @@ requirements:
     - boto
     - boto3
 notes:
-    - This module requires that you have boto and boto3 installed and that your
-      credentials are created or stored in a way that is compatible (see
-      U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
+    - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''

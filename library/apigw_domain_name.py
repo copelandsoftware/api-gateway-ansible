@@ -12,19 +12,19 @@
 #
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 Brian Felton, Emerson
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -37,37 +37,46 @@
 DOCUMENTATION='''
 ---
 module: apigw_domain_name
-description: An Ansible module to add, update, or remove DomainName
-  resources for AWS API Gateway.
+author: Brian Felton (@bjfelton)
+short_description: Add, update, or remove DomainName resources
+description:
+- Uses domain name for identifying resources for CRUD operations
+- Update only covers certificate name
 version_added: "2.2"
 options:
   name:
-    description: The name of the DomainName resource on which to operate
+    description:
+    - The name of the DomainName resource on which to operate
     type: string
     required: True
     aliases: domain_name
   cert_name:
-    description: Name of the associated certificate. Required when C(state) is 'present'
+    description:
+    - Name of the associated certificate. Required when C(state) is 'present'
     type: string
     required: False
     default: None
   cert_private_key:
-    description: Certificate's private key. Required when C(state) is 'present'
+    description:
+    - Certificate's private key. Required when C(state) is 'present'
     type: string
     required: False
     default: None
   cert_body:
-    description: Body of the server certificate. Required when C(state) is 'present'
+    description:
+    - Body of the server certificate. Required when C(state) is 'present'
     type: string
     required: False
     default: None
   cert_chain:
-    description: Intermediate certificates and optionally the root certificate.  If root is included, it must follow the intermediate certificates. Required when C(state) is 'present'
+    description:
+    - Intermediate certificates and optionally the root certificate.  If root is included, it must follow the intermediate certificates. Required when C(state) is 'present'
     type: string
     required: False
     default: None
   state:
-    description: Should domain_name exist or not
+    description:
+    - Should domain_name exist or not
     choices: ['present', 'absent']
     default: 'present'
     required: False
@@ -76,9 +85,7 @@ requirements:
     - boto
     - boto3
 notes:
-    - This module requires that you have boto and boto3 installed and that your
-      credentials are created or stored in a way that is compatible (see
-      U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
+    - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''

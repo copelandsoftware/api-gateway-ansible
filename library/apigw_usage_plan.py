@@ -15,19 +15,19 @@
 #       for the UsagePlan's id by its name.
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 Brian Felton, Emerson
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -39,61 +39,75 @@
 
 DOCUMENTATION='''
 module: apigw_usage_plan
-description: An Ansible module to add, update, or remove UsagePlan
-  and UsagePlanKey resources for AWS API Gateway.
+author: Brian Felton (@bjfelton)
+short_description: Add, update, or remove UsagePlan and UsagePlanKey resources
+description:
+- Basic CRUD operations on Usage Plan Key resources
+- Does not support updating name (see Notes)
 version_added: "2.2"
 options:
   name:
-    description: The domain name of the UsagePlan resource on which to operate
+    description:
+    - The domain name of the UsagePlan resource on which to operate
     type: string
     required: True
   description:
-    description: UsagePlan description
+    description:
+    - UsagePlan description
     type: string
     default: None
     required: False
   api_stages:
-    description: List of associated api stages
+    description:
+    - List of associated api stages
     type: list
     default: []
     required: False
     options:
       rest_api_id:
-        description: ID of the associated API stage in the usage plan
+        description:
+        - ID of the associated API stage in the usage plan
         type: string
         required: True
       stage:
-        description: API stage name of the associated API stage in the usage plan
+        description:
+        - API stage name of the associated API stage in the usage plan
         type: string
         required: True
   throttle_burst_limit:
-    description: API request burst limit
+    description:
+    - API request burst limit
     type: int
     default: -1
     required: False
   throttle_rate_limit:
-    description: API request steady-state limit
+    description:
+    - API request steady-state limit
     type: double
     default: -1.0
     required: False
   quota_limit:
-    description: Maxiumum number of requests that can be made in a given time period
+    description:
+    - Maxiumum number of requests that can be made in a given time period
     type: integer
     default: -1
     required: False
   quota_offset:
-    description: Number of requests subtracted from the given limit in the initial time period
+    description:
+    - Number of requests subtracted from the given limit in the initial time period
     type: integer
     default: -1
     required: False
   quota_period:
-    description: The time period in which the limit applies
+    description:
+    - The time period in which the limit applies
     type: string
     default: ''
     choices: ['', 'DAY', 'WEEK', 'MONTH']
     required: False
   state:
-    description: Should usage_plan exist or not
+    description:
+    - Should usage_plan exist or not
     choices: ['present', 'absent']
     default: 'present'
     required: False
@@ -102,9 +116,8 @@ requirements:
     - boto
     - boto3
 notes:
-    - This module requires that you have boto and boto3 installed and that your
-      credentials are created or stored in a way that is compatible (see
-      U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
+- While it is possible via the boto api to update the UsagePlan's name, this module does not support this functionality since it searches for the UsagePlan's id by its name.
+- This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''
