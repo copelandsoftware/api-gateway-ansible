@@ -594,7 +594,6 @@ def put_integration(params):
     restApiId=params.get('rest_api_id'),
     resourceId=params.get('resource_id'),
     httpMethod=params.get('name'),
-    contentHandling=params['method_integration'].get('content_handling', '').upper(),
     type=params['method_integration'].get('integration_type', 'AWS'),
     requestParameters=param_transformer(params['method_integration'].get('integration_params', []), 'request', 'integration'),
     requestTemplates=add_templates(params['method_integration'].get('request_templates', []))
@@ -604,8 +603,12 @@ def put_integration(params):
     'credentials': 'credentials',
     'passthrough_behavior': 'passthroughBehavior',
     'cache_namespace': 'cacheNamespace',
-    'cache_key_parameters': 'cacheKeyParameters'
+    'cache_key_parameters': 'cacheKeyParameters',
   }
+
+  if params.get('method_integration', {}).get('content_handling', '') != '':
+    params['method_integration']['content_handling'] = params['method_integration']['content_handling'].upper()
+    optional_map['content_handling'] = 'contentHandling'
 
   if params.get('method_integration', {}).get('credentials', '') != '':
     optional_map['credentials'] = 'credentials'

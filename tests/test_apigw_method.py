@@ -929,7 +929,6 @@ class TestApiGwMethod(unittest.TestCase):
       },
       requestTemplates={'application/json': '{}'},
       passthroughBehavior='ptb',
-      contentHandling='',
       cacheNamespace='cn',
       cacheKeyParameters=['param1', 'param2']
     )
@@ -1039,7 +1038,6 @@ class TestApiGwMethod(unittest.TestCase):
         resourceId='rsrcid',
         httpMethod='GET',
         type='value',
-        contentHandling='',
         requestParameters={},
         requestTemplates={}
     )
