@@ -216,6 +216,8 @@ class TestApiGwMethod(unittest.TestCase):
     self.method.module.params = {
       'rest_api_id': 'restid',
       'resource_id': 'rsrcid',
+      'authorization_type': 'custom',
+      'authorizer_id': 'xxx',
       'name': 'GET',
       'api_key_required': True,
       'request_params': [
@@ -227,7 +229,8 @@ class TestApiGwMethod(unittest.TestCase):
 
     expected_patch_ops = [
       {'op': 'replace', 'path': '/apiKeyRequired', 'value': 'True'},
-      {'op': 'remove', 'path': '/authorizationType'},
+      {'op': 'replace', 'path': '/authorizationType', 'value': 'custom'},
+      {'op': 'replace', 'path': '/authorizerId', 'value': 'xxx'},
       {'op': 'add', 'path': '/requestParameters/method.request.path.bob', 'value': 'True'},
       {'op': 'remove', 'path': '/requestParameters/method.request.querystring.qs_test'},
       {'op': 'replace', 'path': '/requestParameters/method.request.header.frank', 'value': 'False'},

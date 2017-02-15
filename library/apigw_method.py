@@ -576,6 +576,10 @@ def update_method(method, params):
   )
 
   if ops:
+    for op in ops:
+      if op['path'] == '/authorizerId':
+        op['op'] = 'replace'
+
     patches = dict(
       restApiId=params.get('rest_api_id'),
       resourceId=params.get('resource_id'),
