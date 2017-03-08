@@ -752,14 +752,14 @@ def update_method_response(method, params):
       ops['creates'].append(kwargs)
     else:
       for content_type, model in mr_dict[code]['models'].iteritems():
-        if content_type not in mr_aws[code]['responseModels']:
+        if content_type not in mr_aws[code].get('responseModels', []):
           patch_dict.setdefault(code, []).append(create_patch('add', content_type, prefix='responseModels', value=model))
         elif model != mr_aws[code]['responseModels'][content_type]:
           patch_dict.setdefault(code, []).append(create_patch('replace', content_type, prefix='responseModels', value=model))
 
       for param, required in mr_dict[code]['params'].iteritems():
         full_param = "method.response.header.{}".format(param)
-        if full_param not in mr_aws[code]['responseParameters']:
+        if full_param not in mr_aws[code].get('responseParameters', []):
           patch_dict.setdefault(code, []).append(
             create_patch('add', full_param, prefix='responseParameters', value=str(required))
           )

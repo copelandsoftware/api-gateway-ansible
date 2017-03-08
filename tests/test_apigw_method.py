@@ -662,6 +662,41 @@ class TestApiGwMethod(unittest.TestCase):
 
   @patch('library.apigw_method.put_integration', mock_args)
   @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_adds_models_and_params_when_missing_from_aws(self, mock_find, mock_vp):
+    mock_find.return_value = {'methodResponses': {'202': {'statusCode': '202'}}}
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'method_responses': [
+        {'status_code': 202,
+          'response_params': [{'name': 'add_absent', 'is_required': True}],
+          'response_models': [{'content_type': 'add_absent', 'model': 'test_model'}]
+        }
+      ],
+      'state': 'present'
+    }
+
+    expected_patch_ops = [
+      {'op': 'add', 'path': '/responseModels/add_absent', 'value': 'test_model'},
+      {'op': 'add', 'path': '/responseParameters/method.response.header.add_absent', 'value': 'True'},
+    ]
+
+    self.method.process_request()
+
+    self.method.client.update_method_response.assert_called_once_with(
+      restApiId='restid',
+      resourceId='rsrcid',
+      httpMethod='GET',
+      statusCode='202',
+      patchOperations=mock.ANY
+    )
+    self.assertItemsEqual(expected_patch_ops, self.method.client.update_method_response.call_args[1]['patchOperations'])
+
+  @patch('library.apigw_method.put_integration', mock_args)
+  @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method', return_value={'some': 'thing'})
   def test_process_request_calls_put_method_response_when_method_exists_without_methodResponses(self, mock_find, mock_vp):
     self.method.module.params = {
