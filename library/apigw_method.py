@@ -553,6 +553,10 @@ def put_method(params):
 
   add_optional_params(params, resp, {'authorizer_id': 'authorizerId'})
 
+  resp['requestModels'] = dict()
+  for model in params.get('request_models', []):
+    resp['requestModels'][model['content_type']] = model['model']
+
   return resp
 
 def update_method(method, params):
@@ -950,6 +954,13 @@ class ApiGwMethod:
         authorization_type=dict(required=False, default='NONE'),
         authorizer_id=dict(required=False),
         api_key_required=dict(required=False, type='bool', default=False),
+        request_models=dict(
+            type='list',
+            required=False,
+            default=[],
+            content_type=dict(required=True),
+            model=dict(required=True)
+        ),
         request_params=dict(
           type='list',
           required=False,
