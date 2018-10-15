@@ -5,7 +5,8 @@
 # Modules in this project allow management of the AWS API Gateway service.
 #
 # Authors:
-#  - Brian Felton <github: bjfelton>
+#  - Brian Felton       <github: bjfelton>
+#  - Jarrod McEvers     <github: JarrodAMcEvers>
 #
 # apigw_resource
 #    Manage creation, update, and removal of API Gateway Method resources
@@ -101,6 +102,23 @@ options:
         - Specifies if the field is required or optional
         type: 'bool'
         required: True
+    request_models:
+        description:
+        - List of dictionaries of known models to attach to the method request
+        type: 'list'
+        default: []
+        required: False
+        options:
+          content_type:
+            description:
+            - The type of the content for this model (e.g. application/json)
+            type: 'string'
+            required: True
+          model:
+            description:
+            - Type of the model
+            type: 'string'
+            required: False
   method_integration:
     description:
     - Dictionary of parameters that specify how and to which resource API Gateway should map requests. This is required when C(state) is 'present'.
@@ -362,6 +380,9 @@ EXAMPLES = '''
         resource_id: "{{ resource.resource.id }}"
         name: GET
         api_key_required: False
+        request_models:
+          - content_type: application/json
+            model: 'Model'
         method_integration:
           integration_type: AWS
           http_method: POST
@@ -474,7 +495,11 @@ Response after create
                     "responseModels": {},
                     "statusCode": "500"
                 }
-            }
+            },
+            "requestModels": [{
+                "content_type": "application/json",
+                "model": "Model"
+            }]
         }
     }
 }
