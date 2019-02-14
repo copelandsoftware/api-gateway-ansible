@@ -900,6 +900,7 @@ class TestApiGwMethod(unittest.TestCase):
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
   def test_process_request_calls_put_method_when_method_is_absent(self, mock_find):
+    self.method.module.params['request_models'] = [{ 'content_type': 'application/json', 'model': 'ModelName' }]
     self.method.module.params['api_key_required'] = True
     self.method.module.params['request_params'] = [{
       'name': 'qs_param',
@@ -928,7 +929,8 @@ class TestApiGwMethod(unittest.TestCase):
         httpMethod='GET',
         authorizationType='NONE',
         apiKeyRequired=True,
-        requestParameters=request_params
+        requestParameters=request_params,
+        requestModels={ 'application/json': 'ModelName' }
     )
 
   @patch.object(ApiGwMethod, '_find_method', return_value=None)
@@ -1059,7 +1061,8 @@ class TestApiGwMethod(unittest.TestCase):
         httpMethod='GET',
         authorizationType='NONE',
         apiKeyRequired=False,
-        requestParameters={}
+        requestParameters={},
+        requestModels={}
     )
     self.method.module.fail_json.assert_called_once_with(
         msg='Error while creating method via boto3: An unspecified error occurred')
@@ -1295,6 +1298,13 @@ class TestApiGwMethod(unittest.TestCase):
                      authorization_type=dict(required=False, default='NONE'),
                      authorizer_id=dict(required=False),
                      api_key_required=dict(required=False, type='bool', default=False),
+                     request_models=dict(
+                         type='list',
+                         required=False,
+                         default=[],
+                         content_type=dict(required=True),
+                         model=dict(required=True)
+                     ),
                      request_params=dict(
                        type='list',
                        required=False,

@@ -5,7 +5,8 @@
 # Modules in this project allow management of the AWS API Gateway service.
 #
 # Authors:
-#  - Brian Felton <github: bjfelton>
+#  - Brian Felton       <github: bjfelton>
+#  - Jarrod McEvers     <github: JarrodAMcEvers>
 #
 # apigw_resource
 #    Manage creation, update, and removal of API Gateway Method resources
@@ -101,6 +102,23 @@ options:
         - Specifies if the field is required or optional
         type: 'bool'
         required: True
+    request_models:
+        description:
+        - List of dictionaries of known models to attach to the method request
+        type: 'list'
+        default: []
+        required: False
+        options:
+          content_type:
+            description:
+            - The type of the content for this model (e.g. application/json)
+            type: 'string'
+            required: True
+          model:
+            description:
+            - Type of the model
+            type: 'string'
+            required: False
   method_integration:
     description:
     - Dictionary of parameters that specify how and to which resource API Gateway should map requests. This is required when C(state) is 'present'.
@@ -362,6 +380,9 @@ EXAMPLES = '''
         resource_id: "{{ resource.resource.id }}"
         name: GET
         api_key_required: False
+        request_models:
+          - content_type: application/json
+            model: 'Model'
         method_integration:
           integration_type: AWS
           http_method: POST
@@ -474,7 +495,11 @@ Response after create
                     "responseModels": {},
                     "statusCode": "500"
                 }
-            }
+            },
+            "requestModels": [{
+                "content_type": "application/json",
+                "model": "Model"
+            }]
         }
     }
 }
@@ -552,6 +577,10 @@ def put_method(params):
   )
 
   add_optional_params(params, resp, {'authorizer_id': 'authorizerId'})
+
+  resp['requestModels'] = dict()
+  for model in params.get('request_models', []):
+    resp['requestModels'][model['content_type']] = model['model']
 
   return resp
 
@@ -950,6 +979,13 @@ class ApiGwMethod:
         authorization_type=dict(required=False, default='NONE'),
         authorizer_id=dict(required=False),
         api_key_required=dict(required=False, type='bool', default=False),
+        request_models=dict(
+            type='list',
+            required=False,
+            default=[],
+            content_type=dict(required=True),
+            model=dict(required=True)
+        ),
         request_params=dict(
           type='list',
           required=False,
