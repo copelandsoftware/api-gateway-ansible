@@ -55,7 +55,7 @@ options:
     description:
     - Type of the authorizer (required when C(state) is 'present')
     required: False
-    choices: ['TOKEN', 'COGNITO_USER_POOLS']
+    choices: ['TOKEN', 'REQUEST', 'COGNITO_USER_POOLS']
     default: None
   uri:
     description:
@@ -181,7 +181,7 @@ class ApiGwAuthorizer:
     """
     return dict( rest_api_id=dict(required=True),
                  name=dict(required=True),
-                 type=dict(required=False, choices=['TOKEN', 'COGNITO_USER_POOLS']),
+                 type=dict(required=False, choices=['TOKEN', 'REQUEST', 'COGNITO_USER_POOLS']),
                  uri=dict(required=False),
                  identity_source=dict(required=False),
                  identity_validation_expression=dict(required=False, default=''),
