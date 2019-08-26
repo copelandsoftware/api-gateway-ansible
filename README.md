@@ -48,6 +48,9 @@ Currently, the following resources are completely or partially covered:
   I expect that development will be ongoing.
 - Issues and PRs are welcome!  Tests are expected with any code changes.
 
+## How to run the tests
+`python -m unittest discovery tests/`
+
 # DANGER WILL ROBINSON!!!
 
 This module is not for you if:
