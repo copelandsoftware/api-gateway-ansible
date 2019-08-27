@@ -1,7 +1,7 @@
 import library.apigw_model as apigw_model
 from library.apigw_model import ApiGwModel
 import mock
-from mock import patch
+from mock import call, patch
 import unittest
 import boto
 from botocore.exceptions import BotoCoreError, ClientError
@@ -13,7 +13,7 @@ class TestApiGwModel(unittest.TestCase):
 
         self.model = ApiGwModel(self.module)
         self.model.client = mock.MagicMock()
-        self.model.client.get_models = mock.MagicMock()
+        self.model.client.create_model = mock.MagicMock()
 
         basic.AnsibleModule = mock.MagicMock(return_value=self.module)
 
@@ -68,16 +68,38 @@ class TestApiGwModel(unittest.TestCase):
         mockApiGwModel.assert_called_once_with(self.module)
         self.assertEqual(1, apiGwModel.process_request.call_count)
 
-    @patch.object(ApiGwModel, '_get_models')
-    def test_process_request_calls_get_models(self, mockGetModels):
+    @patch.object(ApiGwModel, '_create_models')
+    def test_process_request_calls_create_models(self, mockGetModels):
         self.model.process_request()
 
         mockGetModels.assert_called_once()
 
-    def test_process_request_gets_models_from_apigateway(self):
+    def test_process_request_creates_models_with_required_properties(self):
         self.module.params = {
-            'rest_api_id': 'rest_id'
+            'rest_api_id': 'other_rest_id',
+            'models': [
+                {
+                    'name': 'model',
+                    'content_type': 'application/json'
+                },
+                {
+                    'name': 'model2',
+                    'content_type': 'application/pdf'
+                },
+            ]
         }
         self.model.process_request()
 
-        self.model.client.get_models.assert_called_with(restApiId=self.module.params['rest_api_id'])
+        calls = [
+            call(
+                restApiId=self.module.params['rest_api_id'],
+                name='model',
+                contentType='application/json'
+            ),
+            call(
+                restApiId=self.module.params['rest_api_id'],
+                name='model2',
+                contentType='application/pdf'
+            )
+        ]
+        self.model.client.create_model.assert_has_calls(calls)

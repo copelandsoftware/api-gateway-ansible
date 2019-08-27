@@ -31,12 +31,18 @@ class ApiGwModel:
             )
         )
 
-    def _get_models(self):
+    def _create_models(self):
         rest_api_id = self.module.params.get('rest_api_id')
-        return self.client.get_models(restApiId=rest_api_id)
+        models = self.module.params.get('models')
+        for model in models:
+            self.client.create_model(
+                restApiId=rest_api_id,
+                name=model['name'],
+                contentType=model['content_type']
+            )
 
     def process_request(self):
-        self._get_models()
+        self._create_models()
         return
 
 def main():
