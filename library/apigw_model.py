@@ -31,9 +31,27 @@ class ApiGwModel:
             )
         )
 
+    def _differentiate_models_to_create_and_update(self):
+        rest_api_id = self.module.params.get('rest_api_id')
+        response = self.client.get_models(restApiId=rest_api_id)
+        apiGatewayModels = response.get('items')
+        models = self.module.params.get('models')
+
+        modelsToUpdate = [j for j in apiGatewayModels for i in models if j['name'] == i['name']]
+        modelsToCreate = []
+        for model in models:
+            foundInModelsToUpdate = False
+            for updateModel in modelsToUpdate:
+                if model['name'] == updateModel['name']:
+                    foundInModelsToUpdate = True
+            if foundInModelsToUpdate == False:
+                modelsToCreate.append(model)
+        return modelsToCreate, modelsToUpdate
+
     def _create_models(self):
         rest_api_id = self.module.params.get('rest_api_id')
         models = self.module.params.get('models')
+        self._differentiate_models_to_create_and_update()
         for model in models:
             args = {
                 'restApiId': rest_api_id,
