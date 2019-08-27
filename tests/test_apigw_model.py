@@ -15,6 +15,8 @@ class TestApiGwModel(unittest.TestCase):
         self.model.client = mock.MagicMock()
         self.model.client.get_models = mock.MagicMock()
 
+        basic.AnsibleModule = mock.MagicMock(return_value=self.module)
+
     def test_boto_module_not_found(self):
         # Setup Mock Import Function
         import __builtin__ as builtins
@@ -54,15 +56,17 @@ class TestApiGwModel(unittest.TestCase):
     @patch.object(apigw_model, 'AnsibleModule')
     @patch.object(apigw_model, 'ApiGwModel')
     def test_main(self, mockApiGwModel, mockAnsibleModule):
-        mockApiGwModelInstance         = mock.MagicMock()
-        mockAnsibleModuleInstance      = mock.MagicMock()
-        mockApiGwModel.return_value    = mockApiGwModelInstance
-        mockAnsibleModule.return_value = mockAnsibleModuleInstance
+        argumentSpec = mock.MagicMock()
+        apiGwModel = ApiGwModel(self.module)
+        apiGwModel.process_request = mock.MagicMock()
+        mockApiGwModel._define_module_argument_spec.return_value = argumentSpec
+        mockApiGwModel.return_value = apiGwModel
         
         apigw_model.main()
 
-        mockApiGwModel.assert_called_once_with(mockAnsibleModuleInstance)
-        self.assertEqual(1, mockApiGwModelInstance.process_request.call_count)
+        basic.AnsibleModule.assert_called_with(argument_spec=argumentSpec, supports_check_mode=True)
+        mockApiGwModel.assert_called_once_with(self.module)
+        self.assertEqual(1, apiGwModel.process_request.call_count)
 
     @patch.object(ApiGwModel, '_get_models')
     def test_process_request_calls_get_models(self, mockGetModels):

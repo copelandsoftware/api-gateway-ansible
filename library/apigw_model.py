@@ -1,3 +1,6 @@
+from ansible.module_utils import basic
+from ansible.module_utils.basic import * # pylint: disable=W0614
+
 try:
   import boto3
   import boto
@@ -37,7 +40,7 @@ class ApiGwModel:
         return
 
 def main():
-    module = AnsibleModule(
+    module = basic.AnsibleModule(
         argument_spec=ApiGwModel._define_module_argument_spec(),
         supports_check_mode=True
     )
@@ -45,6 +48,5 @@ def main():
     model.process_request()
     return
 
-from ansible.module_utils.basic import *  # pylint: disable=W0614
 if __name__ == '__main__':
     main()
