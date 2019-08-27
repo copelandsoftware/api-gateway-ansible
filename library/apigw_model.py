@@ -35,11 +35,16 @@ class ApiGwModel:
         rest_api_id = self.module.params.get('rest_api_id')
         models = self.module.params.get('models')
         for model in models:
-            self.client.create_model(
-                restApiId=rest_api_id,
-                name=model['name'],
-                contentType=model['content_type']
-            )
+            args = {
+                'restApiId': rest_api_id,
+                'name': model.get('name'),
+                'contentType':model['content_type'],
+                'description': model.get('description', '')
+            }
+            if 'schema' in model.values():
+                args['schema'] = model.get('schema')
+
+            self.client.create_model(**args)
 
     def process_request(self):
         self._create_models()

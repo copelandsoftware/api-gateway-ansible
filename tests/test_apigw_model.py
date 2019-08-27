@@ -74,17 +74,19 @@ class TestApiGwModel(unittest.TestCase):
 
         mockGetModels.assert_called_once()
 
-    def test_process_request_creates_models_with_required_properties(self):
+    def test_process_request_creates_models_with_required_and_optional_properties(self):
         self.module.params = {
             'rest_api_id': 'other_rest_id',
             'models': [
                 {
                     'name': 'model',
-                    'content_type': 'application/json'
+                    'content_type': 'application/json',
+                    'schema': 'schema'
                 },
                 {
                     'name': 'model2',
-                    'content_type': 'application/pdf'
+                    'content_type': 'application/pdf',
+                    'description': 'description'
                 },
             ]
         }
@@ -94,12 +96,15 @@ class TestApiGwModel(unittest.TestCase):
             call(
                 restApiId=self.module.params['rest_api_id'],
                 name='model',
-                contentType='application/json'
+                contentType='application/json',
+                description='',
+                schema='schema'
             ),
             call(
                 restApiId=self.module.params['rest_api_id'],
                 name='model2',
-                contentType='application/pdf'
+                contentType='application/pdf',
+                description='description'
             )
         ]
         self.model.client.create_model.assert_has_calls(calls)
