@@ -77,7 +77,8 @@ class ApiGwModel:
         if content_type == 'application/json':
             args['schema'] = self.module.params['schema']
 
-        self.client.create_model(**args)
+        response = self.client.create_model(**args)
+        return True, response
 
     def process_request(self):
         if self._does_model_exist() == True:

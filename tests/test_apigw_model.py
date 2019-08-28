@@ -86,7 +86,10 @@ class TestApiGwModel(unittest.TestCase):
 
     # _create_model tests
     def test_create_model_creates_models_with_required_and_optional_properties(self):
-        self.model._create_model()
+        mock_response = mock.MagicMock()
+        self.model.client.create_model.return_value = mock_response
+
+        changed, response = self.model._create_model()
 
         self.model.client.create_model.assert_called_with(
             restApiId=self.module.params['rest_api_id'],
@@ -94,6 +97,8 @@ class TestApiGwModel(unittest.TestCase):
             contentType=self.module.params['content_type'],
             description=self.module.params['description']
         )
+        assert changed == True
+        assert response == mock_response
 
     def test_create_model_makes_model_with_schema_if_content_type_is_application_json(self):
         self.module.params = {
