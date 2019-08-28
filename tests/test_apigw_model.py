@@ -16,6 +16,7 @@ class TestApiGwModel(unittest.TestCase):
             'content_type': 'application/pdf',
             'description': 'description'
         }
+        self.module.exit_json = mock.MagicMock()
 
         self.model = ApiGwModel(self.module)
         self.model.client = mock.MagicMock()
@@ -68,7 +69,32 @@ class TestApiGwModel(unittest.TestCase):
 
     @patch.object(ApiGwModel, '_create_model')
     @patch.object(ApiGwModel, '_does_model_exist')
+    def test_process_request_calls_exit_json_with_changed_and_response_from_create_model(self, mockDoesModelExist, mockCreateModel):
+        mockDoesModelExist.return_value = False
+        mock_changed = mock.MagicMock()
+        mock_response = mock.MagicMock()
+        mockCreateModel.return_value = mock_changed, mock_response
+
+        self.model.process_request()
+
+        self.module.exit_json.assert_called_with(changed=mock_changed, model=mock_response)
+
+    @patch.object(ApiGwModel, '_update_model')
+    @patch.object(ApiGwModel, '_does_model_exist')
+    def test_process_request_calls_exit_json_with_changed_and_response_from_update_model(self, mockDoesModelExist, mockUpdateModel):
+        mockDoesModelExist.return_value = True
+        mock_changed = mock.MagicMock()
+        mock_response = mock.MagicMock()
+        mockUpdateModel.return_value = mock_changed, mock_response
+
+        self.model.process_request()
+
+        self.module.exit_json.assert_called_with(changed=mock_changed, model=mock_response)
+
+    @patch.object(ApiGwModel, '_create_model')
+    @patch.object(ApiGwModel, '_does_model_exist')
     def test_process_request_calls_create_model_if_model_does_not_exist(self, mockDoesModelExist, mockCreateModel):
+        mockCreateModel.return_value = '', ''
         mockDoesModelExist.return_calue = False
 
         self.model.process_request()
@@ -77,8 +103,9 @@ class TestApiGwModel(unittest.TestCase):
 
     @patch.object(ApiGwModel, '_update_model')
     @patch.object(ApiGwModel, '_does_model_exist')
-    def test_process_request_calls_update_model_if_model_exists(self, mockUpdateModel, mockDoesModelExist):
-        mockDoesModelExist.return_calue = True
+    def test_process_request_calls_update_model_if_model_exists(self, mockDoesModelExist, mockUpdateModel):
+        mockDoesModelExist.return_value = True
+        mockUpdateModel.return_value = '', ''
 
         self.model.process_request()
 

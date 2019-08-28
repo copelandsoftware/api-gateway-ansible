@@ -68,12 +68,12 @@ class ApiGwModel:
 
     def _create_model(self):
         content_type = self.module.params.get('content_type')
-        args = {
-            'restApiId': self.module.params.get('rest_api_id'),
-            'name': self.module.params.get('name'),
-            'contentType': content_type,
-            'description': self.module.params.get('description', '')
-        }
+        args = dict(
+            restApiId=self.module.params.get('rest_api_id'),
+            name=self.module.params.get('name'),
+            contentType=content_type,
+            description=self.module.params.get('description', '')
+        )
         if content_type == 'application/json':
             args['schema'] = self.module.params['schema']
 
@@ -81,10 +81,14 @@ class ApiGwModel:
         return True, response
 
     def process_request(self):
+        changed = False
+        response = None
         if self._does_model_exist() == True:
-            self._update_model()
+            changed, response = self._update_model()
         else:
-            self._create_model()
+            changed, response = self._create_model()
+
+        self.module.exit_json(changed=changed, model=response)
 
 def main():
     module = basic.AnsibleModule(
