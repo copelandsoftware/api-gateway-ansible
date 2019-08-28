@@ -26,6 +26,20 @@ class ApiGwModel:
             description=dict(required=False, type=str)
         )
 
+    def _does_model_exist(self):
+        try:
+            self.client.get_model(
+                restApiId=self.module.params.get('rest_api_id'),
+                modelName=self.module.params.get('name'),
+                flatten=True
+            )
+            return True
+        except ClientError:
+            return False
+
+    def _update_model(self):
+        return
+
     def _create_model(self):
         rest_api_id = self.module.params.get('rest_api_id')
         content_type = self.module.params.get('content_type')
@@ -40,12 +54,11 @@ class ApiGwModel:
 
         self.client.create_model(**args)
 
-    def _upsert_model(self):
-        self._create_model()
-
     def process_request(self):
-        self._upsert_model()
-        return
+        if self._does_model_exist() == True:
+            self._update_model()
+        else:
+            self._create_model()
 
 def main():
     module = basic.AnsibleModule(
