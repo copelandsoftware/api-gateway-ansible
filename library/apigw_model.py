@@ -28,12 +28,15 @@ class ApiGwModel:
 
     def _upsert_model(self):
         rest_api_id = self.module.params.get('rest_api_id')
+        content_type = self.module.params.get('content_type')
         args = {
             'restApiId': rest_api_id,
             'name': self.module.params.get('name'),
-            'contentType': self.module.params.get('content_type'),
+            'contentType': content_type,
             'description': self.module.params.get('description', '')
         }
+        if content_type == 'application/json':
+            args['schema'] = self.module.params['schema']
 
         self.client.create_model(**args)
 

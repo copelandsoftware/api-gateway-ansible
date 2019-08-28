@@ -83,7 +83,25 @@ class TestApiGwModel(unittest.TestCase):
 
         self.model.client.create_model.assert_called_with(
             restApiId=self.module.params['rest_api_id'],
-            name='model',
-            contentType='application/pdf',
-            description='description'
+            name=self.module.params['name'],
+            contentType=self.module.params['content_type'],
+            description=self.module.params['description']
+        )
+
+    def test_process_request_creates_models_with_schema_if_content_type_is_application_json(self):
+        self.module.params = {
+            'rest_api_id': 'rest_id',
+            'name': 'model2',
+            'content_type': 'application/json',
+            'schema': 'schema'
+        }
+
+        self.model.process_request()
+
+        self.model.client.create_model.assert_called_with(
+            restApiId=self.module.params['rest_api_id'],
+            name=self.module.params['name'],
+            contentType=self.module.params['content_type'],
+            description='',
+            schema=self.module.params['schema']
         )
