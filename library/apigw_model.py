@@ -26,7 +26,7 @@ class ApiGwModel:
             description=dict(required=False, type=str)
         )
 
-    def _upsert_model(self):
+    def _create_model(self):
         rest_api_id = self.module.params.get('rest_api_id')
         content_type = self.module.params.get('content_type')
         args = {
@@ -39,6 +39,9 @@ class ApiGwModel:
             args['schema'] = self.module.params['schema']
 
         self.client.create_model(**args)
+
+    def _upsert_model(self):
+        self._create_model()
 
     def process_request(self):
         self._upsert_model()
