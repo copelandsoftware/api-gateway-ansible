@@ -167,23 +167,30 @@ class TestApiGwModel(unittest.TestCase):
         ]
 
         for case in test_cases:
+            mock_response = mock.MagicMock()
+            self.model.client.update_model.return_value = mock_response
             self.module.params = case['params']
-            self.model._update_model()
+
+            changed, response = self.model._update_model()
 
             self.model.client.update_model.assert_called_with(
                 restApiId=self.module.params['rest_api_id'],
                 modelName=self.module.params['name'],
                 patchOperations=case['expected_patches']
             )
+            assert changed == True
+            assert response == mock_response
 
     def test_update_model_does_not_update_model_if_no_patches_were_found(self):
         self.module.params = {
             'rest_api_id': 'rest_id',
             'name': 'name'
         }
-        self.model._update_model()
+        changed, response = self.model._update_model()
 
         self.model.client.update_model.assert_not_called()
+        assert changed == False
+        assert response == None
 
     # _does_model_exist tests
     def test_does_model_exist_calls_client_get_model(self):

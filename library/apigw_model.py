@@ -38,6 +38,9 @@ class ApiGwModel:
             return False
 
     def _update_model(self):
+        changed = False
+        response = None
+
         patches = []
         if self.module.params.get('description') is not None:
             patches.append(dict(
@@ -53,13 +56,15 @@ class ApiGwModel:
             ))
 
         if len(patches) == 0:
-            return
+            return changed, response
 
-        self.client.update_model(
+
+        response = self.client.update_model(
             restApiId=self.module.params.get('rest_api_id'),
             modelName=self.module.params.get('name'),
             patchOperations=patches
         )
+        return True, response
 
     def _create_model(self):
         content_type = self.module.params.get('content_type')
