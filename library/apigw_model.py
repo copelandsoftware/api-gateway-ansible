@@ -26,41 +26,19 @@ class ApiGwModel:
             description=dict(required=False, type=str)
         )
 
-    def _differentiate_models_to_create_and_update(self):
+    def _upsert_model(self):
         rest_api_id = self.module.params.get('rest_api_id')
-        response = self.client.get_models(restApiId=rest_api_id)
-        apiGatewayModels = response.get('items')
-        models = self.module.params.get('models')
+        args = {
+            'restApiId': rest_api_id,
+            'name': self.module.params.get('name'),
+            'contentType': self.module.params.get('content_type'),
+            'description': self.module.params.get('description', '')
+        }
 
-        modelsToUpdate = [j for j in apiGatewayModels for i in models if j['name'] == i['name']]
-        modelsToCreate = []
-        for model in models:
-            foundInModelsToUpdate = False
-            for updateModel in modelsToUpdate:
-                if model['name'] == updateModel['name']:
-                    foundInModelsToUpdate = True
-            if foundInModelsToUpdate == False:
-                modelsToCreate.append(model)
-        return modelsToCreate, modelsToUpdate
-
-    def _upsert_models(self):
-        rest_api_id = self.module.params.get('rest_api_id')
-        models = self.module.params.get('models')
-        self._differentiate_models_to_create_and_update()
-        for model in models:
-            args = {
-                'restApiId': rest_api_id,
-                'name': model.get('name'),
-                'contentType':model['content_type'],
-                'description': model.get('description', '')
-            }
-            if 'schema' in model.values():
-                args['schema'] = model.get('schema')
-
-            self.client.create_model(**args)
+        self.client.create_model(**args)
 
     def process_request(self):
-        self._upsert_models()
+        self._upsert_model()
         return
 
 def main():

@@ -12,32 +12,14 @@ class TestApiGwModel(unittest.TestCase):
         self.module = mock.MagicMock()
         self.module.params = {
             'rest_api_id': 'other_rest_id',
-            'models': [
-                {
-                    'name': 'model',
-                    'content_type': 'application/json',
-                    'schema': 'schema'
-                },
-                {
-                    'name': 'model2',
-                    'content_type': 'application/pdf',
-                    'description': 'description'
-                }
-            ]
+            'name': 'model',
+            'content_type': 'application/pdf',
+            'description': 'description'
         }
 
         self.model = ApiGwModel(self.module)
         self.model.client = mock.MagicMock()
         self.model.client.create_model = mock.MagicMock()
-
-        self.model.client.get_models = mock.MagicMock()
-        self.model.client.get_models.return_value = {
-            'items': [
-                {
-                    'name': 'model'
-                }
-            ]
-        }
 
         basic.AnsibleModule = mock.MagicMock(return_value=self.module)
 
@@ -90,8 +72,8 @@ class TestApiGwModel(unittest.TestCase):
         mockApiGwModel.assert_called_once_with(self.module)
         self.assertEqual(1, apiGwModel.process_request.call_count)
 
-    @patch.object(ApiGwModel, '_upsert_models')
-    def test_process_request_calls_upsert_models(self, mockGetModels):
+    @patch.object(ApiGwModel, '_upsert_model')
+    def test_process_request_calls_upsert_model(self, mockGetModels):
         self.model.process_request()
 
         mockGetModels.assert_called_once()
@@ -99,39 +81,9 @@ class TestApiGwModel(unittest.TestCase):
     def test_process_request_creates_models_with_required_and_optional_properties(self):
         self.model.process_request()
 
-        calls = [
-            call(
-                restApiId=self.module.params['rest_api_id'],
-                name='model',
-                contentType='application/json',
-                description='',
-                schema='schema'
-            ),
-            call(
-                restApiId=self.module.params['rest_api_id'],
-                name='model2',
-                contentType='application/pdf',
-                description='description'
-            )
-        ]
-        self.model.client.create_model.assert_has_calls(calls)
-
-    @patch.object(ApiGwModel, '_differentiate_models_to_create_and_update')
-    def test_process_request_calls_find_models_to_create_and_update(self, mockDifferentiateModelsToCreateAndUpdate):
-        self.model.process_request()
-
-        mockDifferentiateModelsToCreateAndUpdate.assert_called_once()
-
-
-    def test_differentiate_models_to_create_and_update_returns_appropriate_values(self):
-        createModels, updateModels = self.model._differentiate_models_to_create_and_update()
-
-        self.model.client.get_models.assert_called_with(restApiId=self.module.params['rest_api_id'])
-        assert createModels == [
-            {
-                'name': 'model2',
-                'content_type': 'application/pdf',
-                'description': 'description'
-            }
-        ]
-        assert updateModels == [{ 'name': 'model' }]
+        self.model.client.create_model.assert_called_with(
+            restApiId=self.module.params['rest_api_id'],
+            name='model',
+            contentType='application/pdf',
+            description='description'
+        )
