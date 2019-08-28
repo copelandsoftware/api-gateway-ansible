@@ -38,13 +38,33 @@ class ApiGwModel:
             return False
 
     def _update_model(self):
-        return
+        patches = []
+        if self.module.params.get('description') is not None:
+            patches.append(dict(
+                op='replace',
+                path='/description',
+                value=self.module.params.get('description')
+            ))
+        if self.module.params.get('schema') is not None:
+            patches.append(dict(
+                op='replace',
+                path='/schema',
+                value=self.module.params.get('schema')
+            ))
+
+        if len(patches) == 0:
+            return
+
+        self.client.update_model(
+            restApiId=self.module.params.get('rest_api_id'),
+            modelName=self.module.params.get('name'),
+            patchOperations=patches
+        )
 
     def _create_model(self):
-        rest_api_id = self.module.params.get('rest_api_id')
         content_type = self.module.params.get('content_type')
         args = {
-            'restApiId': rest_api_id,
+            'restApiId': self.module.params.get('rest_api_id'),
             'name': self.module.params.get('name'),
             'contentType': content_type,
             'description': self.module.params.get('description', '')

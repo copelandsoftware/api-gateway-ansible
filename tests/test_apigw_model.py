@@ -21,6 +21,7 @@ class TestApiGwModel(unittest.TestCase):
         self.model.client = mock.MagicMock()
         self.model.client.create_model = mock.MagicMock()
         self.model.client.get_model = mock.MagicMock()
+        self.model.client.update_model = mock.MagicMock()
 
         basic.AnsibleModule = mock.MagicMock(return_value=self.module)
 
@@ -44,6 +45,7 @@ class TestApiGwModel(unittest.TestCase):
         ApiGwModel(self.module)
         mock_boto.client.assert_called_once_with('apigateway')
 
+    # _define_module_argument_spec test
     def test_define_argument_spec(self):
         result = ApiGwModel._define_module_argument_spec()
         self.assertIsInstance(result, dict)
@@ -57,21 +59,30 @@ class TestApiGwModel(unittest.TestCase):
             )
         )
 
+    # process_request tests
+    @patch.object(ApiGwModel, '_does_model_exist')
+    def test_process_request_calls_does_model_exist(self, mockDoesModelExist):
+        self.model.process_request()
 
-    @patch.object(apigw_model, 'AnsibleModule')
-    @patch.object(apigw_model, 'ApiGwModel')
-    def test_main(self, mockApiGwModel, mockAnsibleModule):
-        argumentSpec = mock.MagicMock()
-        apiGwModel = ApiGwModel(self.module)
-        apiGwModel.process_request = mock.MagicMock()
-        mockApiGwModel._define_module_argument_spec.return_value = argumentSpec
-        mockApiGwModel.return_value = apiGwModel
-        
-        apigw_model.main()
+        mockDoesModelExist.assert_called_once()
 
-        basic.AnsibleModule.assert_called_with(argument_spec=argumentSpec, supports_check_mode=True)
-        mockApiGwModel.assert_called_once_with(self.module)
-        self.assertEqual(1, apiGwModel.process_request.call_count)
+    @patch.object(ApiGwModel, '_create_model')
+    @patch.object(ApiGwModel, '_does_model_exist')
+    def test_process_request_calls_create_model_if_model_does_not_exist(self, mockDoesModelExist, mockCreateModel):
+        mockDoesModelExist.return_calue = False
+
+        self.model.process_request()
+
+        mockCreateModel.assert_called_once()
+
+    @patch.object(ApiGwModel, '_update_model')
+    @patch.object(ApiGwModel, '_does_model_exist')
+    def test_process_request_calls_update_model_if_model_exists(self, mockUpdateModel, mockDoesModelExist):
+        mockDoesModelExist.return_calue = True
+
+        self.model.process_request()
+
+        mockUpdateModel.assert_called_once()
 
     # _create_model tests
     def test_create_model_creates_models_with_required_and_optional_properties(self):
@@ -102,29 +113,77 @@ class TestApiGwModel(unittest.TestCase):
             schema=self.module.params['schema']
         )
 
-    @patch.object(ApiGwModel, '_does_model_exist')
-    def test_process_request_calls_does_model_exist(self, mockDoesModelExist):
-        self.model.process_request()
+    # _update_model tests
+    def test_update_model_patches_existing_model(self):
+        test_cases = [
+            {
+                'params': dict(
+                    rest_api_id='some_id',
+                    name='model',
+                    description='lengthy description'
+                ),
+                'expected_patches': [
+                    dict(
+                        op='replace',
+                        path='/description',
+                        value='lengthy description'
+                    )
+                ]
+            },
+            {
+                'params': dict(
+                    rest_api_id='some_id',
+                    name='model_name',
+                    schema='schema'
+                ),
+                'expected_patches': [
+                    dict(
+                        op='replace',
+                        path='/schema',
+                        value='schema'
+                    )
+                ]
+            },
+            {
+                'params': dict(
+                    rest_api_id='some_id',
+                    name='name',
+                    description='description',
+                    schema='schema'
+                ),
+                'expected_patches': [
+                    dict(
+                        op='replace',
+                        path='/description',
+                        value='description'
+                    ),
+                    dict(
+                        op='replace',
+                        path='/schema',
+                        value='schema'
+                    )
+                ]
+            }
+        ]
 
-        mockDoesModelExist.assert_called_once()
+        for case in test_cases:
+            self.module.params = case['params']
+            self.model._update_model()
 
-    @patch.object(ApiGwModel, '_create_model')
-    @patch.object(ApiGwModel, '_does_model_exist')
-    def test_process_request_calls_create_model_if_model_does_not_exist(self, mockDoesModelExist, mockCreateModel):
-        mockDoesModelExist.return_calue = False
+            self.model.client.update_model.assert_called_with(
+                restApiId=self.module.params['rest_api_id'],
+                modelName=self.module.params['name'],
+                patchOperations=case['expected_patches']
+            )
 
-        self.model.process_request()
+    def test_update_model_does_not_update_model_if_no_patches_were_found(self):
+        self.module.params = {
+            'rest_api_id': 'rest_id',
+            'name': 'name'
+        }
+        self.model._update_model()
 
-        mockCreateModel.assert_called_once()
-
-    @patch.object(ApiGwModel, '_update_model')
-    @patch.object(ApiGwModel, '_does_model_exist')
-    def test_process_request_calls_update_model_if_model_exists(self, mockUpdateModel, mockDoesModelExist):
-        mockDoesModelExist.return_calue = True
-
-        self.model.process_request()
-
-        mockUpdateModel.assert_called_once()
+        self.model.client.update_model.assert_not_called()
 
     # _does_model_exist tests
     def test_does_model_exist_calls_client_get_model(self):
@@ -149,3 +208,19 @@ class TestApiGwModel(unittest.TestCase):
         actual = self.model._does_model_exist()
 
         assert actual == False
+
+    # main test
+    @patch.object(apigw_model, 'AnsibleModule')
+    @patch.object(apigw_model, 'ApiGwModel')
+    def test_main(self, mockApiGwModel, mockAnsibleModule):
+        argumentSpec = mock.MagicMock()
+        apiGwModel = ApiGwModel(self.module)
+        apiGwModel.process_request = mock.MagicMock()
+        mockApiGwModel._define_module_argument_spec.return_value = argumentSpec
+        mockApiGwModel.return_value = apiGwModel
+        
+        apigw_model.main()
+
+        basic.AnsibleModule.assert_called_with(argument_spec=argumentSpec, supports_check_mode=True)
+        mockApiGwModel.assert_called_once_with(self.module)
+        self.assertEqual(1, apiGwModel.process_request.call_count)
