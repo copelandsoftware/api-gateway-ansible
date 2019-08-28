@@ -92,8 +92,8 @@ class TestApiGwModel(unittest.TestCase):
         mockApiGwModel.assert_called_once_with(self.module)
         self.assertEqual(1, apiGwModel.process_request.call_count)
 
-    @patch.object(ApiGwModel, '_create_models')
-    def test_process_request_calls_create_models(self, mockGetModels):
+    @patch.object(ApiGwModel, '_upsert_models')
+    def test_process_request_calls_upsert_models(self, mockGetModels):
         self.model.process_request()
 
         mockGetModels.assert_called_once()

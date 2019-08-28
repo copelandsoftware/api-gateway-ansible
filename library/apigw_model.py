@@ -48,7 +48,7 @@ class ApiGwModel:
                 modelsToCreate.append(model)
         return modelsToCreate, modelsToUpdate
 
-    def _create_models(self):
+    def _upsert_models(self):
         rest_api_id = self.module.params.get('rest_api_id')
         models = self.module.params.get('models')
         self._differentiate_models_to_create_and_update()
@@ -65,7 +65,7 @@ class ApiGwModel:
             self.client.create_model(**args)
 
     def process_request(self):
-        self._create_models()
+        self._upsert_models()
         return
 
 def main():
