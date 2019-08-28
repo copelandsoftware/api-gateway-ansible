@@ -20,15 +20,10 @@ class ApiGwModel:
     def _define_module_argument_spec():
         return dict(
             rest_api_id=dict(required=True, type=str),
-            models=dict(
-                type=list,
-                required=True,
-                default=[],
-                name=dict(require=True, type=str),
-                content_type=dict(required=True, type=str),
-                schema=dict(require=False, type=str),
-                description=dict(required=False, type=str)
-            )
+            name=dict(require=True, type=str),
+            content_type=dict(required=True, type=str),
+            schema=dict(require=False, type=str),
+            description=dict(required=False, type=str)
         )
 
     def _differentiate_models_to_create_and_update(self):

@@ -64,17 +64,15 @@ class TestApiGwModel(unittest.TestCase):
     def test_define_argument_spec(self):
         result = ApiGwModel._define_module_argument_spec()
         self.assertIsInstance(result, dict)
-        self.assertEqual(result, dict(
-                     rest_api_id=dict(required=True, type=str),
-                     models=dict(
-                         type=list,
-                         required=True,
-                         default=[],
-                         name=dict(require=True, type=str),
-                         content_type=dict(required=True, type=str),
-                         schema=dict(require=False, type=str),
-                         description=dict(required=False, type=str)
-                     )))
+        self.assertEqual(result,
+            dict(
+                rest_api_id=dict(required=True, type=str),
+                name=dict(require=True, type=str),
+                content_type=dict(required=True, type=str),
+                schema=dict(require=False, type=str),
+                description=dict(required=False, type=str)
+            )
+        )
 
 
     @patch.object(apigw_model, 'AnsibleModule')
