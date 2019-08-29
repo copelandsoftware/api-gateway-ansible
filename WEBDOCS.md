@@ -19,6 +19,7 @@
   * [apigw_stage - an ansible module to update or remove an apigateway stage](#apigw_stage)
   * [apigw_api_key - add, update, or remove apikey resources](#apigw_api_key)
   * [apigw_resource - add or remove resource resources](#apigw_resource)
+  * [apigw_model - add or remove models](#apigw_model)
 
 ---
 
@@ -763,6 +764,74 @@ Add or remove Resource resources
 
 
 ---
+
+
+## <a id="apigw_model"></a>apigw_model
+Add or remove models
+
+  * [Synopsis](#apigw_model-synopsis)
+  * [Options](#apigw_model-options)
+  * [Examples](#apigw_model-examples)
+  * [Notes](#apigw_model-notes)
+
+#### <a id="apigw_model-synopsis"></a>Synopsis
+* An Ansible module to add or remove models for AWS API Gateway.
+
+#### <a id="apigw_model-options"></a>Options
+
+| Parent | Parameter     | required    | default  | choices    | comments |
+|--------| ------------- |-------------| ---------|----------- |--------- |
+| None | state |   no  |  present  | <ul> <li>present</li>  <li>absent</li> </ul> |  Determine whether to assert if resource should exist or not  |
+| None | description | no | "" | | The description of the model. |
+| None | schema | no | | | The schema for the model. This is required if state is present. If content_type is application/json, this should be a JSON schema draft 4 model. |
+| None | content_type | no | | | The content-type for the model. This is required if state is present. |
+| None | name |   yes  |  | | Determine whether to assert if model should exist or not. |
+| None | rest_api_id |   yes  |  | |  The id of the parent rest api.  |
+
+
+ 
+#### <a id="apigw_model-examples"></a>Examples
+
+```
+- name: Add model
+  hosts: localhost
+  gather_facts: False
+  connection: local
+  tasks:
+    - name: Create resource
+      apigw_model:
+        name: 'Model'
+        rest_api_id: 'abcd1234'
+        content_type: 'application/json'
+        schema: '{}'
+        description: 'Description for the model'
+        state: present
+      register: resource
+
+    - name: debug
+      debug: var=resource
+
+- name: Delete model
+  hosts: localhost
+  gather_facts: False
+  connection: local
+  tasks:
+    - name: Delete resource
+      apigw_rest_api:
+        name: 'Model'
+        rest_api_id: 'abcd1234'
+        state: absent
+      register: resource
+
+    - name: debug
+      debug: var=resource
+
+```
+
+
+#### <a id="apigw_model-notes"></a>Notes
+- Even though the docs say that schema is required for create model, I could not find an example where you did not have to pass in schema.
+- This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 
 
 ---

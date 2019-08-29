@@ -58,12 +58,12 @@ options:
     required: False
   schema:
     description:
-    - Schema for the model. This is required if state is present. If content_type is application/json, this should be a JSON schema draft 4 model.
+    - The schema for the model. This is required if state is present. If content_type is application/json, this should be a JSON schema draft 4 model.
     type: 'string'
     required: False
   description:
     description:
-    - Description for the model.
+    - The description for the model.
     type: 'string'
     default: ''
     required: False
@@ -80,8 +80,8 @@ requirements:
     - boto
     - boto3
 notes:
-  - Even though the docs for create model does not require the schema, I could not find an example where you did not have to pass in schema.
-  - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
+- Even though the docs say that schema is required for create model, I could not find an example where you did not have to pass in schema.
+- This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
 EXAMPLES = '''

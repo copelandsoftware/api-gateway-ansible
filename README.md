@@ -25,6 +25,7 @@ Currently, the following resources are completely or partially covered:
 - Stage
 - Usage Plan
 - Usage Plan Key
+- Models
 
 ## Gaps
 
