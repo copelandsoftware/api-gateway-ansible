@@ -57,7 +57,8 @@ class TestApiGwModel(unittest.TestCase):
                 name=dict(require=True, type=str),
                 content_type=dict(required=True, type=str),
                 schema=dict(require=False, type=str),
-                description=dict(required=False, type=str)
+                description=dict(required=False, type=str),
+                state=dict(default='present', choices=['present', 'absent'])
             )
         )
 

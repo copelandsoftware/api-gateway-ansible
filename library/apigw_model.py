@@ -23,7 +23,8 @@ class ApiGwModel:
             name=dict(require=True, type=str),
             content_type=dict(required=True, type=str),
             schema=dict(require=False, type=str),
-            description=dict(required=False, type=str)
+            description=dict(required=False, type=str),
+            state=dict(default='present', choices=['present', 'absent'])
         )
 
     def _does_model_exist(self):
