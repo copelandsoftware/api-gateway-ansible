@@ -10,6 +10,7 @@ from ansible.module_utils import basic
 class TestApiGwModel(unittest.TestCase):
     def setUp(self):
         self.module = mock.MagicMock()
+        self.module.check_mode = False
         self.module.params = {
             'rest_api_id': 'other_rest_id',
             'name': 'model',
@@ -168,6 +169,15 @@ class TestApiGwModel(unittest.TestCase):
             schema=self.module.params['schema']
         )
 
+    def test_create_model_does_not_call_create_model_if_in_check_mode(self):
+        self.module.check_mode = True
+
+        changed, response = self.model._create_model()
+
+        assert changed == True
+        assert response == None
+        self.model.client.create_model.assert_not_called()
+
     def test_create_model_calls_fail_json_if_create_model_throws_exception(self):
         self.model.client.create_model.side_effect = ClientError({'Error': {'Code': 'x NotFoundException x'}}, 'error')
 
@@ -254,6 +264,14 @@ class TestApiGwModel(unittest.TestCase):
         assert changed == False
         assert response == None
 
+    def test_update_model_does_not_update_model_if_in_check_mode(self):
+        self.module.check_mode = True
+        changed, response = self.model._update_model()
+
+        self.model.client.update_model.assert_not_called()
+        assert changed == True
+        assert response == None
+
     def test_update_model_calls_fail_json_if_update_model_throws_exception(self):
         self.model.client.update_model.side_effect = ClientError({'Error': {'Code': 'some error'}}, 'error')
 
@@ -269,6 +287,13 @@ class TestApiGwModel(unittest.TestCase):
             restApiId=self.module.params['rest_api_id'],
             modelName=self.module.params['name']
         )
+
+    def test_delete_model_does_not_call_delete_model_if_in_check_mode(self):
+        self.module.check_mode = True
+        response = self.model._delete_model()
+
+        assert response == None
+        self.model.client.delete_model.assert_not_called()
 
     def test_delete_model_returns_nothing_if_delete_model_works(self):
         response = self.model._delete_model()

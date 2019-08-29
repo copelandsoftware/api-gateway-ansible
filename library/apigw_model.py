@@ -39,15 +39,18 @@ class ApiGwModel:
             return False
 
     def _delete_model(self):
-        try:
-            self.client.delete_model(
-                restApiId=self.module.params.get('rest_api_id'),
-                modelName=self.module.params.get('name')
-            )
-        except ClientError as e:
-            if 'NotFoundException' in e.message:
-                return None
-            self.module.fail_json(msg='Error while deleting model: {}'.format(e))
+        if not self.module.check_mode:
+            try:
+                self.client.delete_model(
+                    restApiId=self.module.params.get('rest_api_id'),
+                    modelName=self.module.params.get('name')
+                )
+            except ClientError as e:
+                if 'NotFoundException' in e.message:
+                    return None
+                self.module.fail_json(msg='Error while deleting model: {}'.format(e))
+
+        return None
 
     def _update_model(self):
         changed = False
@@ -70,6 +73,9 @@ class ApiGwModel:
         if len(patches) == 0:
             return changed, response
 
+        if self.module.check_mode:
+            return True, None
+
         try:
             response = self.client.update_model(
                 restApiId=self.module.params.get('rest_api_id'),
@@ -81,6 +87,9 @@ class ApiGwModel:
             self.module.fail_json(msg='Error while updating model: {}'.format(e))
 
     def _create_model(self):
+        if self.module.check_mode:
+            return True, None
+
         content_type = self.module.params.get('content_type')
         args = dict(
             restApiId=self.module.params.get('rest_api_id'),
