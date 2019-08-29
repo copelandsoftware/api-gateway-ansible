@@ -150,11 +150,11 @@ class ApiGwModel:
     @staticmethod
     def _define_module_argument_spec():
         return dict(
-            rest_api_id=dict(required=True, type=str),
-            name=dict(require=True, type=str),
-            content_type=dict(required=False, type=str),
-            schema=dict(require=False, type=str),
-            description=dict(required=False, type=str),
+            rest_api_id=dict(required=True, type='str'),
+            name=dict(required=True, type='str'),
+            content_type=dict(required=False, type='str'),
+            schema=dict(required=False, type='str'),
+            description=dict(required=False, type='str'),
             state=dict(default='present', choices=['present', 'absent'])
         )
 
