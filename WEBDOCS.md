@@ -451,6 +451,7 @@ Add, update, or remove AWS API Gateway Method resources
 | request_params | location |   yes  |  | <ul> <li>querystring</li>  <li>path</li>  <li>header</li> </ul> |  Identifies where in the request to find the parameter  |
 | request_params | name |   yes  |  | |  The name of the request parameter  |
 | request_params | param_required |   yes  |  | |  Specifies if the field is required or optional  |
+| None | request_models |   no  | [] | |  List of dictionaries of known models to attach to the method request  |
 | None | resource_id |   yes  |  | |  The id of the resource to which the method belongs  |
 | None | state |   no  |  present  | <ul> <li>present</li>  <li>absent</li> </ul> |  Determine whether to assert if resource should exist or not  |
 | None | integration_responses |   no  |  []  | |  List of dictionaries the map backend responses to the outbound response.  This section is required when C(state) is 'present'.  |
