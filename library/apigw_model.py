@@ -38,6 +38,17 @@ class ApiGwModel:
         except ClientError:
             return False
 
+    def _delete_model(self):
+        try:
+            self.client.delete_model(
+                restApiId=self.module.params.get('rest_api_id'),
+                modelName=self.module.params.get('name')
+            )
+        except ClientError as e:
+            if 'NotFoundException' in e.message:
+                return None
+            self.module.fail_json(msg='Error while deleting model: {}'.format(e))
+
     def _update_model(self):
         changed = False
         response = None
@@ -87,7 +98,13 @@ class ApiGwModel:
             self.module.fail_json(msg='Error while creating model: {}'.format(e))
 
     def process_request(self):
-        if self._does_model_exist() == True:
+        changed = False
+        response = None
+
+        if self.module.params.get('state') == 'absent':
+            self._delete_model()
+            changed = True
+        elif self._does_model_exist() == True:
             changed, response = self._update_model()
         else:
             changed, response = self._create_model()

@@ -14,7 +14,8 @@ class TestApiGwModel(unittest.TestCase):
             'rest_api_id': 'other_rest_id',
             'name': 'model',
             'content_type': 'application/pdf',
-            'description': 'description'
+            'description': 'description',
+            'state': 'present'
         }
         self.module.exit_json = mock.MagicMock()
         self.module.fail_json = mock.MagicMock()
@@ -22,8 +23,9 @@ class TestApiGwModel(unittest.TestCase):
         self.model = ApiGwModel(self.module)
         self.model.client = mock.MagicMock()
         self.model.client.create_model = mock.MagicMock()
-        self.model.client.get_model = mock.MagicMock()
         self.model.client.update_model = mock.MagicMock()
+        self.model.client.delete_model = mock.MagicMock()
+        self.model.client.get_model = mock.MagicMock()
 
         basic.AnsibleModule = mock.MagicMock(return_value=self.module)
 
@@ -112,6 +114,25 @@ class TestApiGwModel(unittest.TestCase):
         self.model.process_request()
 
         mockUpdateModel.assert_called_once()
+
+    @patch.object(ApiGwModel, '_delete_model')
+    def test_process_request_calls_delete_model_if_state_is_absent(self, mockDeleteModel):
+        self.module.params['state'] = 'absent'
+        mockDeleteModel.return_value = '', ''
+
+        self.model.process_request()
+
+        mockDeleteModel.assert_called_once()
+
+    @patch.object(ApiGwModel, '_delete_model')
+    def test_process_request_calls_exit_json_with_true_and_none_after_delete_model_succeeds(self, mockDeleteModel):
+        mock_response = mock.MagicMock()
+        self.module.params['state'] = 'absent'
+        mockDeleteModel.return_value = mock_response
+
+        self.model.process_request()
+
+        self.module.exit_json.assert_called_with(changed=True, model=None)
 
     # _create_model tests
     def test_create_model_creates_models_with_required_and_optional_properties(self):
@@ -239,6 +260,36 @@ class TestApiGwModel(unittest.TestCase):
         self.model._update_model()
 
         self.module.fail_json.assert_called_with(msg='Error while updating model: An error occurred (some error) when calling the error operation: Unknown')
+
+    # _delete_model tests
+    def test_delete_model_calls_delete_model(self):
+        self.model._delete_model()
+
+        self.model.client.delete_model.assert_called_with(
+            restApiId=self.module.params['rest_api_id'],
+            modelName=self.module.params['name']
+        )
+
+    def test_delete_model_returns_nothing_if_delete_model_works(self):
+        response = self.model._delete_model()
+
+        assert response == None
+
+    def test_delete_model_returns_nothing_if_delete_model_returns_not_found_exception(self):
+        self.module.fail_json.reset_mock()
+        self.model.client.delete_model.side_effect = ClientError({'Error': {'Code': '(NotFoundException)'}}, 'error')
+
+        response = self.model._delete_model()
+        
+        assert response == None
+        self.module.fail_json.assert_not_called()
+
+    def test_delete_model_calls_fail_json_if_delete_model_returns_any_other_exception(self):
+        self.model.client.delete_model.side_effect = ClientError({'Error': {'Code': '(AnyOtherException)'}}, 'error')
+
+        self.model._delete_model()
+
+        self.module.fail_json.assert_called_with(msg='Error while deleting model: An error occurred ((AnyOtherException)) when calling the error operation: Unknown')
 
     # _does_model_exist tests
     def test_does_model_exist_calls_client_get_model(self):
