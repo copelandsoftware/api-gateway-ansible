@@ -15,6 +15,7 @@ class TestApiGwModel(unittest.TestCase):
             'rest_api_id': 'other_rest_id',
             'name': 'model',
             'content_type': 'application/pdf',
+            'schema': 'schema',
             'description': 'description',
             'state': 'present'
         }
@@ -59,7 +60,7 @@ class TestApiGwModel(unittest.TestCase):
                 rest_api_id=dict(required=True, type=str),
                 name=dict(require=True, type=str),
                 content_type=dict(required=True, type=str),
-                schema=dict(require=False, type=str),
+                schema=dict(require=True, type=str),
                 description=dict(required=False, type=str),
                 state=dict(default='present', choices=['present', 'absent'])
             )
@@ -136,7 +137,7 @@ class TestApiGwModel(unittest.TestCase):
         self.module.exit_json.assert_called_with(changed=True, model=None)
 
     # _create_model tests
-    def test_create_model_creates_models_with_required_and_optional_properties(self):
+    def test_create_model_creates_models_with_passed_in_description(self):
         mock_response = mock.MagicMock()
         self.model.client.create_model.return_value = mock_response
 
@@ -145,29 +146,29 @@ class TestApiGwModel(unittest.TestCase):
         self.model.client.create_model.assert_called_with(
             restApiId=self.module.params['rest_api_id'],
             name=self.module.params['name'],
+            schema=self.module.params['schema'],
             contentType=self.module.params['content_type'],
             description=self.module.params['description']
         )
         assert changed == True
         assert response == mock_response
 
-    def test_create_model_makes_model_with_schema_if_content_type_is_application_json(self):
-        self.module.params = {
-            'rest_api_id': 'rest_id',
-            'name': 'model2',
-            'content_type': 'application/json',
-            'schema': 'schema'
-        }
+    def test_create_model_creates_models_with_empty_description_if_none_was_provided(self):
+        del self.module.params['description']
+        mock_response = mock.MagicMock()
+        self.model.client.create_model.return_value = mock_response
 
-        self.model._create_model()
+        changed, response = self.model._create_model()
 
         self.model.client.create_model.assert_called_with(
             restApiId=self.module.params['rest_api_id'],
             name=self.module.params['name'],
+            schema=self.module.params['schema'],
             contentType=self.module.params['content_type'],
-            description='',
-            schema=self.module.params['schema']
+            description=''
         )
+        assert changed == True
+        assert response == mock_response
 
     def test_create_model_does_not_call_create_model_if_in_check_mode(self):
         self.module.check_mode = True
@@ -191,20 +192,6 @@ class TestApiGwModel(unittest.TestCase):
             {
                 'params': dict(
                     rest_api_id='some_id',
-                    name='model',
-                    description='lengthy description'
-                ),
-                'expected_patches': [
-                    dict(
-                        op='replace',
-                        path='/description',
-                        value='lengthy description'
-                    )
-                ]
-            },
-            {
-                'params': dict(
-                    rest_api_id='some_id',
                     name='model_name',
                     schema='schema'
                 ),
@@ -213,7 +200,12 @@ class TestApiGwModel(unittest.TestCase):
                         op='replace',
                         path='/schema',
                         value='schema'
-                    )
+                    ),
+                    dict(
+                        op='replace',
+                        path='/description',
+                        value=''
+                    ),
                 ]
             },
             {
@@ -226,13 +218,13 @@ class TestApiGwModel(unittest.TestCase):
                 'expected_patches': [
                     dict(
                         op='replace',
-                        path='/description',
-                        value='description'
+                        path='/schema',
+                        value='schema'
                     ),
                     dict(
                         op='replace',
-                        path='/schema',
-                        value='schema'
+                        path='/description',
+                        value='description'
                     )
                 ]
             }
@@ -252,17 +244,6 @@ class TestApiGwModel(unittest.TestCase):
             )
             assert changed == True
             assert response == mock_response
-
-    def test_update_model_does_not_update_model_if_no_patches_were_found(self):
-        self.module.params = {
-            'rest_api_id': 'rest_id',
-            'name': 'name'
-        }
-        changed, response = self.model._update_model()
-
-        self.model.client.update_model.assert_not_called()
-        assert changed == False
-        assert response == None
 
     def test_update_model_does_not_update_model_if_in_check_mode(self):
         self.module.check_mode = True

@@ -22,7 +22,7 @@ class ApiGwModel:
             rest_api_id=dict(required=True, type=str),
             name=dict(require=True, type=str),
             content_type=dict(required=True, type=str),
-            schema=dict(require=False, type=str),
+            schema=dict(require=True, type=str),
             description=dict(required=False, type=str),
             state=dict(default='present', choices=['present', 'absent'])
         )
@@ -53,25 +53,21 @@ class ApiGwModel:
         return None
 
     def _patch_builder(self):
-        patches = []
-        if self.module.params.get('description') is not None:
-            patches.append(dict(
-                op='replace',
-                path='/description',
-                value=self.module.params.get('description')
-            ))
-        if self.module.params.get('schema') is not None:
-            patches.append(dict(
+        return [
+            dict(
                 op='replace',
                 path='/schema',
                 value=self.module.params.get('schema')
-            ))
-        return patches
+            ),
+            dict(
+                op='replace',
+                path='/description',
+                value=self.module.params.get('description', '')
+            )
+        ]
 
     def _update_model(self):
         patches = self._patch_builder()
-        if len(patches) == 0:
-            return False, None
 
         if self.module.check_mode:
             return True, None
@@ -94,10 +90,9 @@ class ApiGwModel:
             restApiId=self.module.params.get('rest_api_id'),
             name=self.module.params.get('name'),
             contentType=content_type,
+            schema=self.module.params.get('schema'),
             description=self.module.params.get('description', '')
         )
-        if content_type == 'application/json':
-            args['schema'] = self.module.params['schema']
 
         try:
             response = self.client.create_model(**args)
