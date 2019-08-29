@@ -154,7 +154,7 @@ class ApiGwModel:
             name=dict(required=True, type='str'),
             content_type=dict(required=False, type='str'),
             schema=dict(required=False, type='str'),
-            description=dict(required=False, type='str'),
+            description=dict(required=False, type='str', default=''),
             state=dict(default='present', choices=['present', 'absent'])
         )
 
@@ -193,7 +193,7 @@ class ApiGwModel:
             dict(
                 op='replace',
                 path='/description',
-                value=self.module.params.get('description', '')
+                value=self.module.params.get('description')
             )
         ]
 
@@ -216,13 +216,12 @@ class ApiGwModel:
         if self.module.check_mode:
             return True, None
 
-        content_type = self.module.params.get('content_type')
         args = dict(
             restApiId=self.module.params.get('rest_api_id'),
             name=self.module.params.get('name'),
-            contentType=content_type,
+            contentType=self.module.params.get('content_type'),
             schema=self.module.params.get('schema'),
-            description=self.module.params.get('description', '')
+            description=self.module.params.get('description')
         )
 
         try:

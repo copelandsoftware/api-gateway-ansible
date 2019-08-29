@@ -61,7 +61,7 @@ class TestApiGwModel(unittest.TestCase):
                 name=dict(required=True, type='str'),
                 content_type=dict(required=False, type='str'),
                 schema=dict(required=False, type='str'),
-                description=dict(required=False, type='str'),
+                description=dict(required=False, type='str', default=''),
                 state=dict(default='present', choices=['present', 'absent'])
             )
         )
@@ -153,23 +153,6 @@ class TestApiGwModel(unittest.TestCase):
         assert changed == True
         assert response == mock_response
 
-    def test_create_model_creates_models_with_empty_description_if_none_was_provided(self):
-        del self.module.params['description']
-        mock_response = mock.MagicMock()
-        self.model.client.create_model.return_value = mock_response
-
-        changed, response = self.model._create_model()
-
-        self.model.client.create_model.assert_called_with(
-            restApiId=self.module.params['rest_api_id'],
-            name=self.module.params['name'],
-            schema=self.module.params['schema'],
-            contentType=self.module.params['content_type'],
-            description=''
-        )
-        assert changed == True
-        assert response == mock_response
-
     def test_create_model_does_not_call_create_model_if_in_check_mode(self):
         self.module.check_mode = True
 
@@ -188,62 +171,31 @@ class TestApiGwModel(unittest.TestCase):
 
     # _update_model tests
     def test_update_model_patches_existing_model(self):
-        test_cases = [
-            {
-                'params': dict(
-                    rest_api_id='some_id',
-                    name='model_name',
-                    schema='schema'
-                ),
-                'expected_patches': [
-                    dict(
-                        op='replace',
-                        path='/schema',
-                        value='schema'
-                    ),
-                    dict(
-                        op='replace',
-                        path='/description',
-                        value=''
-                    ),
-                ]
-            },
-            {
-                'params': dict(
-                    rest_api_id='some_id',
-                    name='name',
-                    description='description',
-                    schema='schema'
-                ),
-                'expected_patches': [
-                    dict(
-                        op='replace',
-                        path='/schema',
-                        value='schema'
-                    ),
-                    dict(
-                        op='replace',
-                        path='/description',
-                        value='description'
-                    )
-                ]
-            }
+        expected_patches = [
+            dict(
+                op='replace',
+                path='/schema',
+                value='schema'
+            ),
+            dict(
+                op='replace',
+                path='/description',
+                value='description'
+            )
         ]
 
-        for case in test_cases:
-            mock_response = mock.MagicMock()
-            self.model.client.update_model.return_value = mock_response
-            self.module.params = case['params']
+        mock_response = mock.MagicMock()
+        self.model.client.update_model.return_value = mock_response
 
-            changed, response = self.model._update_model()
+        changed, response = self.model._update_model()
 
-            self.model.client.update_model.assert_called_with(
-                restApiId=self.module.params['rest_api_id'],
-                modelName=self.module.params['name'],
-                patchOperations=case['expected_patches']
-            )
-            assert changed == True
-            assert response == mock_response
+        self.model.client.update_model.assert_called_with(
+            restApiId=self.module.params['rest_api_id'],
+            modelName=self.module.params['name'],
+            patchOperations=expected_patches
+        )
+        assert changed == True
+        assert response == mock_response
 
     def test_update_model_does_not_update_model_if_in_check_mode(self):
         self.module.check_mode = True
