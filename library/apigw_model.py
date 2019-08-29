@@ -52,10 +52,7 @@ class ApiGwModel:
 
         return None
 
-    def _update_model(self):
-        changed = False
-        response = None
-
+    def _patch_builder(self):
         patches = []
         if self.module.params.get('description') is not None:
             patches.append(dict(
@@ -69,13 +66,15 @@ class ApiGwModel:
                 path='/schema',
                 value=self.module.params.get('schema')
             ))
+        return patches
 
+    def _update_model(self):
+        patches = self._patch_builder()
         if len(patches) == 0:
-            return changed, response
+            return False, None
 
         if self.module.check_mode:
             return True, None
-
         try:
             response = self.client.update_model(
                 restApiId=self.module.params.get('rest_api_id'),
@@ -127,7 +126,6 @@ def main():
     )
     model = ApiGwModel(module)
     model.process_request()
-    return
 
 if __name__ == '__main__':
     main()
