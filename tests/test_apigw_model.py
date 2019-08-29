@@ -59,8 +59,8 @@ class TestApiGwModel(unittest.TestCase):
             dict(
                 rest_api_id=dict(required=True, type=str),
                 name=dict(require=True, type=str),
-                content_type=dict(required=True, type=str),
-                schema=dict(require=True, type=str),
+                content_type=dict(required=False, type=str),
+                schema=dict(require=False, type=str),
                 description=dict(required=False, type=str),
                 state=dict(default='present', choices=['present', 'absent'])
             )

@@ -53,14 +53,14 @@ options:
     required: True
   content_type:
     description:
-    - The content-type for the model.
+    - The content-type for the model. This is required if state is present.
     type: 'string'
-    required: True
+    required: False
   schema:
     description:
-    - Schema for the model. If content_type is application/json, this should be a JSON schema draft 4 model.
+    - Schema for the model. This is required if state is present. If content_type is application/json, this should be a JSON schema draft 4 model.
     type: 'string'
-    required: True
+    required: False
   description:
     description:
     - Description for the model.
@@ -135,7 +135,7 @@ from ansible.module_utils.basic import * # pylint: disable=W0614
 try:
   import boto3
   import boto
-  from botocore.exceptions import BotoCoreError, ClientError
+  from botocore.exceptions import ClientError
   HAS_BOTO3 = True
 except ImportError:
   HAS_BOTO3 = False
@@ -152,8 +152,8 @@ class ApiGwModel:
         return dict(
             rest_api_id=dict(required=True, type=str),
             name=dict(require=True, type=str),
-            content_type=dict(required=True, type=str),
-            schema=dict(require=True, type=str),
+            content_type=dict(required=False, type=str),
+            schema=dict(require=False, type=str),
             description=dict(required=False, type=str),
             state=dict(default='present', choices=['present', 'absent'])
         )
