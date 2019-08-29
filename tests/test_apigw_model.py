@@ -17,6 +17,7 @@ class TestApiGwModel(unittest.TestCase):
             'description': 'description'
         }
         self.module.exit_json = mock.MagicMock()
+        self.module.fail_json = mock.MagicMock()
 
         self.model = ApiGwModel(self.module)
         self.model.client = mock.MagicMock()
@@ -145,6 +146,13 @@ class TestApiGwModel(unittest.TestCase):
             schema=self.module.params['schema']
         )
 
+    def test_create_model_calls_fail_json_if_create_model_throws_exception(self):
+        self.model.client.create_model.side_effect = ClientError({'Error': {'Code': 'x NotFoundException x'}}, 'error')
+
+        self.model._create_model()
+
+        self.module.fail_json.assert_called_with(msg='Error while creating model: An error occurred (x NotFoundException x) when calling the error operation: Unknown')
+
     # _update_model tests
     def test_update_model_patches_existing_model(self):
         test_cases = [
@@ -223,6 +231,13 @@ class TestApiGwModel(unittest.TestCase):
         self.model.client.update_model.assert_not_called()
         assert changed == False
         assert response == None
+
+    def test_update_model_calls_fail_json_if_update_model_throws_exception(self):
+        self.model.client.update_model.side_effect = ClientError({'Error': {'Code': 'some error'}}, 'error')
+
+        self.model._update_model()
+
+        self.module.fail_json.assert_called_with(msg='Error while updating model: An error occurred (some error) when calling the error operation: Unknown')
 
     # _does_model_exist tests
     def test_does_model_exist_calls_client_get_model(self):

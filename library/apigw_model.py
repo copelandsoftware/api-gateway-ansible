@@ -58,13 +58,15 @@ class ApiGwModel:
         if len(patches) == 0:
             return changed, response
 
-
-        response = self.client.update_model(
-            restApiId=self.module.params.get('rest_api_id'),
-            modelName=self.module.params.get('name'),
-            patchOperations=patches
-        )
-        return True, response
+        try:
+            response = self.client.update_model(
+                restApiId=self.module.params.get('rest_api_id'),
+                modelName=self.module.params.get('name'),
+                patchOperations=patches
+            )
+            return True, response
+        except ClientError as e:
+            self.module.fail_json(msg='Error while updating model: {}'.format(e))
 
     def _create_model(self):
         content_type = self.module.params.get('content_type')
@@ -77,12 +79,13 @@ class ApiGwModel:
         if content_type == 'application/json':
             args['schema'] = self.module.params['schema']
 
-        response = self.client.create_model(**args)
-        return True, response
+        try:
+            response = self.client.create_model(**args)
+            return True, response
+        except ClientError as e:
+            self.module.fail_json(msg='Error while creating model: {}'.format(e))
 
     def process_request(self):
-        changed = False
-        response = None
         if self._does_model_exist() == True:
             changed, response = self._update_model()
         else:
