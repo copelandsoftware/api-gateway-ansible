@@ -25,6 +25,7 @@ Currently, the following resources are completely or partially covered:
 - Stage
 - Usage Plan
 - Usage Plan Key
+- Models
 
 ## Gaps
 
@@ -47,6 +48,9 @@ Currently, the following resources are completely or partially covered:
   Not only would the non-standard argument spec likely cause problems,
   I expect that development will be ongoing.
 - Issues and PRs are welcome!  Tests are expected with any code changes.
+
+## How to run the tests
+`python -m unittest discovery tests/`
 
 # DANGER WILL ROBINSON!!!
 

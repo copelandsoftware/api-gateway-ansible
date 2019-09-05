@@ -37,7 +37,7 @@
 
 DOCUMENTATION='''
 module: apigw_method
-author: Brian Felton (@bjfelton)
+authors: Brian Felton (@bjfelton), Jarrod McEvers (@JarrodAMcEvers)
 short_description: Add, update, or remove AWS API Gateway Method resources
 description:
 - CRUD operations for Method resources
@@ -116,7 +116,7 @@ options:
             required: True
           model:
             description:
-            - Type of the model
+            - Name of the model
             type: 'string'
             required: False
   method_integration:
