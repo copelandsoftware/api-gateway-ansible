@@ -158,16 +158,15 @@ class ApiGwModel:
             state=dict(default='present', choices=['present', 'absent'])
         )
 
-    def _does_model_exist(self):
+    def _find_model(self):
         try:
-            self.client.get_model(
+            return self.client.get_model(
                 restApiId=self.module.params.get('rest_api_id'),
                 modelName=self.module.params.get('name'),
                 flatten=True
             )
-            return True
         except ClientError:
-            return False
+            return None
 
     def _delete_model(self):
         if not self.module.check_mode:
@@ -234,13 +233,15 @@ class ApiGwModel:
         changed = False
         response = None
 
+        self.model = self._find_model()
+
         if self.module.params.get('state') == 'absent':
             self._delete_model()
             changed = True
-        elif self._does_model_exist() == True:
-            changed, response = self._update_model()
-        else:
+        elif self.model == None:
             changed, response = self._create_model()
+        else:
+            changed, response = self._update_model()
 
         self.module.exit_json(changed=changed, model=response)
 

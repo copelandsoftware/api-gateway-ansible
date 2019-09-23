@@ -67,16 +67,16 @@ class TestApiGwModel(unittest.TestCase):
         )
 
     # process_request tests
-    @patch.object(ApiGwModel, '_does_model_exist')
-    def test_process_request_calls_does_model_exist(self, mockDoesModelExist):
+    @patch.object(ApiGwModel, '_find_model')
+    def test_process_request_calls_find_model(self, mockFindModel):
         self.model.process_request()
 
-        mockDoesModelExist.assert_called_once()
+        mockFindModel.assert_called_once()
 
     @patch.object(ApiGwModel, '_create_model')
-    @patch.object(ApiGwModel, '_does_model_exist')
-    def test_process_request_calls_exit_json_with_changed_and_response_from_create_model(self, mockDoesModelExist, mockCreateModel):
-        mockDoesModelExist.return_value = False
+    @patch.object(ApiGwModel, '_find_model')
+    def test_process_request_calls_exit_json_with_changed_and_response_from_create_model(self, mockFindModel, mockCreateModel):
+        mockFindModel.return_value = None
         mock_changed = mock.MagicMock()
         mock_response = mock.MagicMock()
         mockCreateModel.return_value = mock_changed, mock_response
@@ -86,9 +86,9 @@ class TestApiGwModel(unittest.TestCase):
         self.module.exit_json.assert_called_with(changed=mock_changed, model=mock_response)
 
     @patch.object(ApiGwModel, '_update_model')
-    @patch.object(ApiGwModel, '_does_model_exist')
-    def test_process_request_calls_exit_json_with_changed_and_response_from_update_model(self, mockDoesModelExist, mockUpdateModel):
-        mockDoesModelExist.return_value = True
+    @patch.object(ApiGwModel, '_find_model')
+    def test_process_request_calls_exit_json_with_changed_and_response_from_update_model(self, mockFindModel, mockUpdateModel):
+        mockFindModel.return_value = mock.MagicMock()
         mock_changed = mock.MagicMock()
         mock_response = mock.MagicMock()
         mockUpdateModel.return_value = mock_changed, mock_response
@@ -98,19 +98,19 @@ class TestApiGwModel(unittest.TestCase):
         self.module.exit_json.assert_called_with(changed=mock_changed, model=mock_response)
 
     @patch.object(ApiGwModel, '_create_model')
-    @patch.object(ApiGwModel, '_does_model_exist')
-    def test_process_request_calls_create_model_if_model_does_not_exist(self, mockDoesModelExist, mockCreateModel):
+    @patch.object(ApiGwModel, '_find_model')
+    def test_process_request_calls_create_model_if_model_does_not_exist(self, mockFindModel, mockCreateModel):
         mockCreateModel.return_value = '', ''
-        mockDoesModelExist.return_calue = False
+        mockFindModel.return_value = None
 
         self.model.process_request()
 
         mockCreateModel.assert_called_once()
 
     @patch.object(ApiGwModel, '_update_model')
-    @patch.object(ApiGwModel, '_does_model_exist')
-    def test_process_request_calls_update_model_if_model_exists(self, mockDoesModelExist, mockUpdateModel):
-        mockDoesModelExist.return_value = True
+    @patch.object(ApiGwModel, '_find_model')
+    def test_process_request_calls_update_model_if_model_exists(self, mockFindModel, mockUpdateModel):
+        mockFindModel.return_value = True
         mockUpdateModel.return_value = '', ''
 
         self.model.process_request()
@@ -249,9 +249,9 @@ class TestApiGwModel(unittest.TestCase):
 
         self.module.fail_json.assert_called_with(msg='Error while deleting model: An error occurred ((AnyOtherException)) when calling the error operation: Unknown')
 
-    # _does_model_exist tests
-    def test_does_model_exist_calls_client_get_model(self):
-        self.model._does_model_exist()
+    # _find_model tests
+    def test_find_model_calls_client_get_model(self):
+        self.model._find_model()
 
         self.model.client.get_model.assert_called_with(
             restApiId=self.module.params['rest_api_id'],
@@ -259,19 +259,19 @@ class TestApiGwModel(unittest.TestCase):
             flatten=True
         )
 
-    def test_does_model_exist_returns_true_if_model_exists(self):
+    def test_find_model_returns_true_if_model_exists(self):
         self.model.client.get_model.return_value = True
 
-        actual = self.model._does_model_exist()
+        actual = self.model._find_model()
 
         assert actual == True
 
-    def test_does_model_exist_returns_false_if_model_does_not_exist(self):
+    def test_find_model_returns_None_if_model_does_not_exist(self):
         self.model.client.get_model.side_effect = ClientError({'Error': {'Code': 'x NotFoundException x'}}, 'something')
 
-        actual = self.model._does_model_exist()
+        actual = self.model._find_model()
 
-        assert actual == False
+        assert actual == None
 
     # main test
     @patch.object(apigw_model, 'AnsibleModule')
