@@ -235,7 +235,9 @@ class ApiGwModel:
 
         self.model = self._find_model()
 
-        if self.module.params.get('state') == 'absent':
+        if self.module.params.get('state') == 'absent' and self.model == None:
+            changed = False
+        elif self.module.params.get('state') == 'absent':
             self._delete_model()
             changed = True
         elif self.model == None:

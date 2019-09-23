@@ -127,6 +127,16 @@ class TestApiGwModel(unittest.TestCase):
         mockDeleteModel.assert_called_once()
 
     @patch.object(ApiGwModel, '_delete_model')
+    @patch.object(ApiGwModel, '_find_model')
+    def test_process_request_does_not_call_delete_model_if_model_does_not_exist(self, mockFindModel, mockDeleteModel):
+        self.module.params['state'] = 'absent'
+        mockFindModel.return_value = None
+
+        self.model.process_request()
+
+        mockDeleteModel.assert_not_called()
+
+    @patch.object(ApiGwModel, '_delete_model')
     def test_process_request_calls_exit_json_with_true_and_none_after_delete_model_succeeds(self, mockDeleteModel):
         mock_response = mock.MagicMock()
         self.module.params['state'] = 'absent'
@@ -135,6 +145,18 @@ class TestApiGwModel(unittest.TestCase):
         self.model.process_request()
 
         self.module.exit_json.assert_called_with(changed=True, model=None)
+
+    @patch.object(ApiGwModel, '_delete_model')
+    @patch.object(ApiGwModel, '_find_model')
+    def test_process_request_calls_exit_json_with_changed_false_and_none_if_model_does_not_exist(self, mockFindModel, mockDeleteModel):
+        self.module.params['state'] = 'absent'
+        mock_response = mock.MagicMock()
+        mockDeleteModel.return_value = mock_response
+        mockFindModel.return_value = None
+
+        self.model.process_request()
+
+        self.module.exit_json.assert_called_with(changed=False, model=None)
 
     # _create_model tests
     def test_create_model_creates_models_with_passed_in_description(self):
