@@ -102,23 +102,23 @@ options:
         - Specifies if the field is required or optional
         type: 'bool'
         required: True
-    request_models:
-        description:
-        - List of dictionaries of known models to attach to the method request
-        type: 'list'
-        default: []
-        required: False
-        options:
-          content_type:
-            description:
-            - The type of the content for this model (e.g. application/json)
-            type: 'string'
-            required: True
-          model:
-            description:
-            - Name of the model
-            type: 'string'
-            required: False
+  request_models:
+      description:
+      - List of dictionaries of known models to attach to the method request
+      type: 'list'
+      default: []
+      required: False
+      options:
+        content_type:
+          description:
+          - The type of the content for this model (e.g. application/json)
+          type: 'string'
+          required: True
+        model:
+          description:
+          - Name of the model
+          type: 'string'
+          required: False
   method_integration:
     description:
     - Dictionary of parameters that specify how and to which resource API Gateway should map requests. This is required when C(state) is 'present'.

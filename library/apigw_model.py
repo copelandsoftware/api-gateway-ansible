@@ -80,7 +80,7 @@ requirements:
     - boto
     - boto3
 notes:
-- Even though the docs say that schema is required for create model, I could not find an example where you did not have to pass in schema.
+- Even though the docs say that schema is not required for create model, it seems that it is actually required.
 - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
