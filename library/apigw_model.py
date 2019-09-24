@@ -197,11 +197,16 @@ class ApiGwModel:
         ]
 
     def _update_model(self):
-        patches = self._patch_builder()
+        description = self.model.get('description', None)
+        moduleDescription = self.module.params.get('description', None)
+
+        if self.module.params.get('schema') == self.model['schema'] and description == moduleDescription:
+            return False, None
 
         if self.module.check_mode:
             return True, None
         try:
+            patches = self._patch_builder()
             response = self.client.update_model(
                 restApiId=self.module.params.get('rest_api_id'),
                 modelName=self.module.params.get('name'),

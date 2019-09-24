@@ -28,6 +28,7 @@ class TestApiGwModel(unittest.TestCase):
         self.model.client.update_model = mock.MagicMock()
         self.model.client.delete_model = mock.MagicMock()
         self.model.client.get_model = mock.MagicMock()
+        self.model.model = mock.MagicMock()
 
         basic.AnsibleModule = mock.MagicMock(return_value=self.module)
 
@@ -221,6 +222,7 @@ class TestApiGwModel(unittest.TestCase):
 
     def test_update_model_does_not_update_model_if_in_check_mode(self):
         self.module.check_mode = True
+
         changed, response = self.model._update_model()
 
         self.model.client.update_model.assert_not_called()
@@ -233,6 +235,49 @@ class TestApiGwModel(unittest.TestCase):
         self.model._update_model()
 
         self.module.fail_json.assert_called_with(msg='Error while updating model: An error occurred (some error) when calling the error operation: Unknown')
+
+    def test_update_model_does_not_call_update_model_if_schema_and_description_have_not_changed(self):
+        self.model.model = {
+            "schema": self.module.params.get('schema'),
+            "description": self.module.params.get('description')
+        }
+
+        changed, response = self.model._update_model()
+
+        assert changed == False
+        assert response == None
+        self.model.client.update_model.assert_not_called()
+
+    def test_update_model_calls_update_model_if_the_schema_has_changed(self):
+        self.module.params['schema'] = 'some other schema'
+        expected_patches = [
+            dict(
+                op='replace',
+                path='/schema',
+                value='some other schema'
+            ),
+            dict(
+                op='replace',
+                path='/description',
+                value='description'
+            )
+        ]
+        self.model.model = {
+            "schema": 'existing schema',
+            "description": self.module.params.get('description')
+        }
+        mock_response = mock.MagicMock()
+        self.model.client.update_model.return_value = mock_response
+
+        changed, response = self.model._update_model()
+
+        assert changed == True
+        assert response == mock_response
+        self.model.client.update_model.assert_called_with(
+            restApiId=self.module.params['rest_api_id'],
+            modelName=self.module.params['name'],
+            patchOperations=expected_patches
+        )
 
     # _delete_model tests
     def test_delete_model_calls_delete_model(self):
