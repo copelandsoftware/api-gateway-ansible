@@ -90,5 +90,7 @@ ENV/
 
 *test*.yml
 
-# VS Code
+# Editors
 .idea/
+.vscode/
+

@@ -220,6 +220,10 @@ class TestApiGwMethod(unittest.TestCase):
       'authorizer_id': 'xxx',
       'name': 'GET',
       'api_key_required': True,
+      'request_models': {
+        'application/json': '{}',
+        'application/pdf': '{}'
+      },
       'request_params': [
         {'name': 'bob', 'location': 'path', 'param_required': True},
         {'name': 'frank', 'location': 'header', 'param_required': False},
@@ -232,6 +236,8 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'replace', 'path': '/authorizationType', 'value': 'custom'},
       {'op': 'replace', 'path': '/authorizerId', 'value': 'xxx'},
       {'op': 'add', 'path': '/requestParameters/method.request.path.bob', 'value': 'True'},
+      {'op': 'add', 'path': '/requestModels/application~1json', 'value': '{}'},
+      {'op': 'add', 'path': '/requestModels/application~1pdf', 'value': '{}'},
       {'op': 'remove', 'path': '/requestParameters/method.request.querystring.qs_test'},
       {'op': 'replace', 'path': '/requestParameters/method.request.header.frank', 'value': 'False'},
     ]
@@ -772,7 +778,7 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'remove', 'path': '/responseTemplates/delete'},
       {'op': 'replace', 'path': '/responseParameters/method.response.header.change', 'value': 'newval'},
       {'op': 'add', 'path': '/responseParameters/method.response.body.addme', 'value': 'bodyval'},
-      {'op': 'remove', 'path': '/responseParameters/also-delete'},
+      {'op': 'remove', 'path': '/responseParameters/also-delete'}
     ]
 
     self.method.process_request()
@@ -950,7 +956,7 @@ class TestApiGwMethod(unittest.TestCase):
         {'name': 'header_param', 'value': 'headerval', 'location': 'header'}
       ]
     }
-    self.method.module.params['method_integration'] = p;
+    self.method.module.params['method_integration'] = p
     expected = dict(
       restApiId='restid',
       resourceId='rsrcid',
@@ -981,7 +987,7 @@ class TestApiGwMethod(unittest.TestCase):
         {'status_code': 400, 'response_params': [{'name': 'err_param', 'is_required': True}]},
         {'status_code': 500}
     ]
-    self.method.module.params['method_responses'] = p;
+    self.method.module.params['method_responses'] = p
     expected = [
       dict(
         restApiId='restid', resourceId='rsrcid', httpMethod='GET',
@@ -1020,7 +1026,7 @@ class TestApiGwMethod(unittest.TestCase):
           'response_templates': [{'content_type': 'application/json', 'template': '{}'}]
         },
     ]
-    self.method.module.params['integration_responses'] = p;
+    self.method.module.params['integration_responses'] = p
     expected = [
       dict(
         restApiId='restid',

@@ -549,6 +549,11 @@ def patch_builder(method, params, param_map):
     elif str(params[ans_param]).lower() != str(method[boto_param]).lower():
       ops.append(create_patch('replace', boto_param, value=params[ans_param]))
 
+  moduleRequestModels = params.get('request_models', {})
+  methodRequestModels = method.get('requestModels', {})
+  if len(methodRequestModels) == 0 and len(moduleRequestModels) > 0:
+    for key in moduleRequestModels:
+      ops.append(create_patch('add', key, 'requestModels', value=moduleRequestModels.get(key)))
   return ops
 
 def two_way_compare_patch_builder(aws_dict, ans_dict, prefix):
@@ -589,7 +594,7 @@ def update_method(method, params):
 
   param_map = {
     'authorization_type': 'authorizationType',
-    'api_key_required': 'apiKeyRequired',
+    'api_key_required': 'apiKeyRequired'
   }
 
   if params.get('authorization_type', 'NONE') != 'NONE':
@@ -950,7 +955,6 @@ def param_transformer(params_list, type, location='method'):
       params[key] = param['value']
 
   return params
-
 
 class ApiGwMethod:
   def __init__(self, module):
