@@ -254,6 +254,34 @@ class TestApiGwMethod(unittest.TestCase):
 
   @patch('library.apigw_method.put_integration', mock_args)
   @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_calls_update_method_with_patch_operations_to_delete_all_method_request_models(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'httpMethod': 'GET',
+      'requestModels': {
+        'application/json': '{}',
+        'application/pdf': '{}'
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'state': 'present'
+    }
+
+    expected_patch_ops = [
+      {'op': 'remove', 'path': '/requestModels/application~1json'},
+      {'op': 'remove', 'path': '/requestModels/application~1pdf'}
+    ]
+
+    self.method.process_request()
+    
+    self.assertItemsEqual(expected_patch_ops, self.method.client.update_method.call_args[1]['patchOperations'])
+
+  @patch('library.apigw_method.put_integration', mock_args)
+  @patch.object(ApiGwMethod, 'validate_params')
   @patch.object(ApiGwMethod, '_find_method', return_value={})
   def test_process_request_skips_update_and_returns_true_when_check_mode_set(self, mock_find, mock_vp):
     mock_find.return_value = {

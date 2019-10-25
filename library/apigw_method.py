@@ -554,6 +554,9 @@ def patch_builder(method, params, param_map):
   if len(methodRequestModels) == 0 and len(moduleRequestModels) > 0:
     for key in moduleRequestModels:
       ops.append(create_patch('add', key, 'requestModels', value=moduleRequestModels.get(key)))
+  if len(moduleRequestModels) == 0 and len(methodRequestModels) > 0:
+    for key in methodRequestModels:
+      ops.append(create_patch('remove', key, 'requestModels'))
   return ops
 
 def two_way_compare_patch_builder(aws_dict, ans_dict, prefix):
