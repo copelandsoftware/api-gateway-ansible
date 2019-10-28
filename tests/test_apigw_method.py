@@ -277,7 +277,42 @@ class TestApiGwMethod(unittest.TestCase):
     ]
 
     self.method.process_request()
-    
+
+    self.assertItemsEqual(expected_patch_ops, self.method.client.update_method.call_args[1]['patchOperations'])
+
+  @patch('library.apigw_method.put_integration', mock_args)
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_calls_update_method_with_patch_operations_to_add_update_or_remove_request_models_for_method(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'httpMethod': 'GET',
+      'requestModels': {
+        'application/json': '{}',
+        'application/gson': 'some_value',
+        'application/octet-stream': 'octet'
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'state': 'present',
+      'request_models': {
+        'application/json': 'new_value',
+        'application/pdf': 'pdf'
+      }
+    }
+
+    expected_patch_ops = [
+      {'op': 'remove', 'path': '/requestModels/application~1gson'},
+      {'op': 'remove', 'path': '/requestModels/application~1octet-stream'},
+      {'op': 'replace', 'path': '/requestModels/application~1json', 'value': 'new_value'},
+      {'op': 'add', 'path': '/requestModels/application~1pdf', 'value': 'pdf'}
+    ]
+
+    self.method.process_request()
+
     self.assertItemsEqual(expected_patch_ops, self.method.client.update_method.call_args[1]['patchOperations'])
 
   @patch('library.apigw_method.put_integration', mock_args)
