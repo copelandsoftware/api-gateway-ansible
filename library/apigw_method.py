@@ -353,6 +353,7 @@ notes:
   - This module is a beast in that it's covering four separate APIs for the four API Gateway stages
   - Arguments are presented in a non-idiomatic manner -- arguments are grouped under dictionaries in order to better organize arguments to the four separate stages
   - While the majority of the Method, Method Integration, Method Response, and Integration Response APIs are covered, there are likely gaps.  Issues and PRs are welcome.
+  - This module will update only a handful of attributes for a method, such as authorization type, api key required, request params, and request models.
   - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
