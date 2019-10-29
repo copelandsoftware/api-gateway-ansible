@@ -550,7 +550,11 @@ def patch_builder(method, params, param_map):
     elif str(params[ans_param]).lower() != str(method[boto_param]).lower():
       ops.append(create_patch('replace', boto_param, value=params[ans_param]))
 
-  moduleRequestModels = params.get('request_models', {})
+  requestModelsList = params.get('request_models', [])
+  moduleRequestModels = {}
+  for item in requestModelsList:
+    moduleRequestModels[item['content_type']] = item['model']
+
   methodRequestModels = method.get('requestModels', {})
   if len(methodRequestModels) == 0 and len(moduleRequestModels) > 0:
     for key in moduleRequestModels:

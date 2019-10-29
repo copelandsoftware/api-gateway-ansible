@@ -220,10 +220,10 @@ class TestApiGwMethod(unittest.TestCase):
       'authorizer_id': 'xxx',
       'name': 'GET',
       'api_key_required': True,
-      'request_models': {
-        'application/json': '{}',
-        'application/pdf': '{}'
-      },
+      'request_models': [
+        { 'content_type': 'application/json', 'model': 'json' },
+        { 'content_type': 'application/pdf', 'model': 'pdf' },
+      ],
       'request_params': [
         {'name': 'bob', 'location': 'path', 'param_required': True},
         {'name': 'frank', 'location': 'header', 'param_required': False},
@@ -236,8 +236,8 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'replace', 'path': '/authorizationType', 'value': 'custom'},
       {'op': 'replace', 'path': '/authorizerId', 'value': 'xxx'},
       {'op': 'add', 'path': '/requestParameters/method.request.path.bob', 'value': 'True'},
-      {'op': 'add', 'path': '/requestModels/application~1json', 'value': '{}'},
-      {'op': 'add', 'path': '/requestModels/application~1pdf', 'value': '{}'},
+      {'op': 'add', 'path': '/requestModels/application~1json', 'value': 'json' },
+      {'op': 'add', 'path': '/requestModels/application~1pdf', 'value': 'pdf'},
       {'op': 'remove', 'path': '/requestParameters/method.request.querystring.qs_test'},
       {'op': 'replace', 'path': '/requestParameters/method.request.header.frank', 'value': 'False'},
     ]
@@ -298,10 +298,10 @@ class TestApiGwMethod(unittest.TestCase):
       'resource_id': 'rsrcid',
       'name': 'GET',
       'state': 'present',
-      'request_models': {
-        'application/json': 'new_value',
-        'application/pdf': 'pdf'
-      }
+      'request_models': [
+        { 'content_type': 'application/json', 'model': 'new_value' },
+        { 'content_type': 'application/pdf', 'model': 'pdf' }
+      ]
     }
 
     expected_patch_ops = [
