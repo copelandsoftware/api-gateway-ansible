@@ -527,6 +527,12 @@ class InvalidInputError(Exception):
     """
     Exception.__init__(self, "Error validating {0}: {1}".format(param, fail_message))
 
+def buildDictionaryFromListOfDictionaries(list, key, value):
+  dictionary = dict()
+  for item in list:
+    dictionary[item[key]] = item[value]
+  return dictionary
+
 def create_patch(op, path, prefix=None, value=None):
   if re.search('/', path):
     path = re.sub('/', '~1', path)
@@ -550,11 +556,7 @@ def patch_builder(method, params, param_map):
     elif str(params[ans_param]).lower() != str(method[boto_param]).lower():
       ops.append(create_patch('replace', boto_param, value=params[ans_param]))
 
-  requestModelsList = params.get('request_models', [])
-  moduleRequestModels = {}
-  for item in requestModelsList:
-    moduleRequestModels[item['content_type']] = item['model']
-
+  moduleRequestModels = buildDictionaryFromListOfDictionaries(params.get('request_models', []), 'content_type', 'model')
   methodRequestModels = method.get('requestModels', {})
   if len(methodRequestModels) == 0 and len(moduleRequestModels) > 0:
     for key in moduleRequestModels:
@@ -570,11 +572,13 @@ def patch_builder(method, params, param_map):
         ops.append(create_patch('replace', key, 'requestModels', moduleValue))
       elif moduleValue == None:
         ops.append(create_patch('remove', key, 'requestModels'))
+
     for key in moduleRequestModels:
       moduleValue = moduleRequestModels.get(key, None)
       methodValue = methodRequestModels.get(key, None)
       if moduleValue != None and methodValue == None:
         ops.append(create_patch('add', key, 'requestModels', moduleValue))
+
   return ops
 
 def two_way_compare_patch_builder(aws_dict, ans_dict, prefix):
