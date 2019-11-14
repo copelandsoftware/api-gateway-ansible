@@ -80,7 +80,7 @@ requirements:
     - boto
     - boto3
 notes:
-- Even though the docs say that schema is required for create model, I could not find an example where you did not have to pass in schema.
+- Even though the docs say that schema is not required for create model, it seems that it is actually required.
 - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
@@ -158,16 +158,15 @@ class ApiGwModel:
             state=dict(default='present', choices=['present', 'absent'])
         )
 
-    def _does_model_exist(self):
+    def _find_model(self):
         try:
-            self.client.get_model(
+            return self.client.get_model(
                 restApiId=self.module.params.get('rest_api_id'),
                 modelName=self.module.params.get('name'),
                 flatten=True
             )
-            return True
         except ClientError:
-            return False
+            return None
 
     def _delete_model(self):
         if not self.module.check_mode:
@@ -198,11 +197,16 @@ class ApiGwModel:
         ]
 
     def _update_model(self):
-        patches = self._patch_builder()
+        description = self.model.get('description', None)
+        moduleDescription = self.module.params.get('description', None)
+
+        if self.module.params.get('schema') == self.model['schema'] and description == moduleDescription:
+            return False, None
 
         if self.module.check_mode:
             return True, None
         try:
+            patches = self._patch_builder()
             response = self.client.update_model(
                 restApiId=self.module.params.get('rest_api_id'),
                 modelName=self.module.params.get('name'),
@@ -234,13 +238,17 @@ class ApiGwModel:
         changed = False
         response = None
 
-        if self.module.params.get('state') == 'absent':
+        self.model = self._find_model()
+
+        if self.module.params.get('state') == 'absent' and self.model == None:
+            changed = False
+        elif self.module.params.get('state') == 'absent':
             self._delete_model()
             changed = True
-        elif self._does_model_exist() == True:
-            changed, response = self._update_model()
-        else:
+        elif self.model == None:
             changed, response = self._create_model()
+        else:
+            changed, response = self._update_model()
 
         self.module.exit_json(changed=changed, model=response)
 

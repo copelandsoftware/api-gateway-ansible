@@ -102,23 +102,23 @@ options:
         - Specifies if the field is required or optional
         type: 'bool'
         required: True
-    request_models:
-        description:
-        - List of dictionaries of known models to attach to the method request
-        type: 'list'
-        default: []
-        required: False
-        options:
-          content_type:
-            description:
-            - The type of the content for this model (e.g. application/json)
-            type: 'string'
-            required: True
-          model:
-            description:
-            - Name of the model
-            type: 'string'
-            required: False
+  request_models:
+      description:
+      - List of dictionaries of known models to attach to the method request
+      type: 'list'
+      default: []
+      required: False
+      options:
+        content_type:
+          description:
+          - The type of the content for this model (e.g. application/json)
+          type: 'string'
+          required: True
+        model:
+          description:
+          - Name of the model
+          type: 'string'
+          required: False
   method_integration:
     description:
     - Dictionary of parameters that specify how and to which resource API Gateway should map requests. This is required when C(state) is 'present'.
@@ -353,6 +353,7 @@ notes:
   - This module is a beast in that it's covering four separate APIs for the four API Gateway stages
   - Arguments are presented in a non-idiomatic manner -- arguments are grouped under dictionaries in order to better organize arguments to the four separate stages
   - While the majority of the Method, Method Integration, Method Response, and Integration Response APIs are covered, there are likely gaps.  Issues and PRs are welcome.
+  - This module will update only a handful of attributes for a method, such as authorization type, api key required, request params, and request models.
   - This module requires that you have boto and boto3 installed and that your credentials are created or stored in a way that is compatible (see U(https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration)).
 '''
 
@@ -526,6 +527,12 @@ class InvalidInputError(Exception):
     """
     Exception.__init__(self, "Error validating {0}: {1}".format(param, fail_message))
 
+def buildDictionaryFromListOfDictionaries(list, key, value):
+  dictionary = dict()
+  for item in list:
+    dictionary[item[key]] = item[value]
+  return dictionary
+
 def create_patch(op, path, prefix=None, value=None):
   if re.search('/', path):
     path = re.sub('/', '~1', path)
@@ -548,6 +555,29 @@ def patch_builder(method, params, param_map):
       ops.append(create_patch('add', boto_param, value=params[ans_param]))
     elif str(params[ans_param]).lower() != str(method[boto_param]).lower():
       ops.append(create_patch('replace', boto_param, value=params[ans_param]))
+
+  moduleRequestModels = buildDictionaryFromListOfDictionaries(params.get('request_models', []), 'content_type', 'model')
+  methodRequestModels = method.get('requestModels', {})
+  if len(methodRequestModels) == 0 and len(moduleRequestModels) > 0:
+    for key in moduleRequestModels:
+      ops.append(create_patch('add', key, 'requestModels', value=moduleRequestModels.get(key)))
+  elif len(moduleRequestModels) == 0 and len(methodRequestModels) > 0:
+    for key in methodRequestModels:
+      ops.append(create_patch('remove', key, 'requestModels'))
+  else:
+    for key in methodRequestModels:
+      moduleValue = moduleRequestModels.get(key, None)
+      methodValue = methodRequestModels.get(key, None)
+      if moduleValue != None and moduleValue != methodValue:
+        ops.append(create_patch('replace', key, 'requestModels', moduleValue))
+      elif moduleValue == None:
+        ops.append(create_patch('remove', key, 'requestModels'))
+
+    for key in moduleRequestModels:
+      moduleValue = moduleRequestModels.get(key, None)
+      methodValue = methodRequestModels.get(key, None)
+      if moduleValue != None and methodValue == None:
+        ops.append(create_patch('add', key, 'requestModels', moduleValue))
 
   return ops
 
@@ -589,7 +619,7 @@ def update_method(method, params):
 
   param_map = {
     'authorization_type': 'authorizationType',
-    'api_key_required': 'apiKeyRequired',
+    'api_key_required': 'apiKeyRequired'
   }
 
   if params.get('authorization_type', 'NONE') != 'NONE':
@@ -950,7 +980,6 @@ def param_transformer(params_list, type, location='method'):
       params[key] = param['value']
 
   return params
-
 
 class ApiGwMethod:
   def __init__(self, module):

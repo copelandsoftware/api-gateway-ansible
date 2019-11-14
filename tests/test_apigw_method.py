@@ -220,6 +220,10 @@ class TestApiGwMethod(unittest.TestCase):
       'authorizer_id': 'xxx',
       'name': 'GET',
       'api_key_required': True,
+      'request_models': [
+        { 'content_type': 'application/json', 'model': 'json' },
+        { 'content_type': 'application/pdf', 'model': 'pdf' },
+      ],
       'request_params': [
         {'name': 'bob', 'location': 'path', 'param_required': True},
         {'name': 'frank', 'location': 'header', 'param_required': False},
@@ -232,6 +236,8 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'replace', 'path': '/authorizationType', 'value': 'custom'},
       {'op': 'replace', 'path': '/authorizerId', 'value': 'xxx'},
       {'op': 'add', 'path': '/requestParameters/method.request.path.bob', 'value': 'True'},
+      {'op': 'add', 'path': '/requestModels/application~1json', 'value': 'json' },
+      {'op': 'add', 'path': '/requestModels/application~1pdf', 'value': 'pdf'},
       {'op': 'remove', 'path': '/requestParameters/method.request.querystring.qs_test'},
       {'op': 'replace', 'path': '/requestParameters/method.request.header.frank', 'value': 'False'},
     ]
@@ -244,6 +250,69 @@ class TestApiGwMethod(unittest.TestCase):
       httpMethod='GET',
       patchOperations=mock.ANY
     )
+    self.assertItemsEqual(expected_patch_ops, self.method.client.update_method.call_args[1]['patchOperations'])
+
+  @patch('library.apigw_method.put_integration', mock_args)
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_calls_update_method_with_patch_operations_to_delete_all_method_request_models(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'httpMethod': 'GET',
+      'requestModels': {
+        'application/json': '{}',
+        'application/pdf': '{}'
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'state': 'present'
+    }
+
+    expected_patch_ops = [
+      {'op': 'remove', 'path': '/requestModels/application~1json'},
+      {'op': 'remove', 'path': '/requestModels/application~1pdf'}
+    ]
+
+    self.method.process_request()
+
+    self.assertItemsEqual(expected_patch_ops, self.method.client.update_method.call_args[1]['patchOperations'])
+
+  @patch('library.apigw_method.put_integration', mock_args)
+  @patch.object(ApiGwMethod, 'validate_params')
+  @patch.object(ApiGwMethod, '_find_method')
+  def test_process_request_calls_update_method_with_patch_operations_to_add_update_or_remove_request_models_for_method(self, mock_find, mock_vp):
+    mock_find.return_value = {
+      'httpMethod': 'GET',
+      'requestModels': {
+        'application/json': '{}',
+        'application/gson': 'some_value',
+        'application/octet-stream': 'octet'
+      }
+    }
+
+    self.method.module.params = {
+      'rest_api_id': 'restid',
+      'resource_id': 'rsrcid',
+      'name': 'GET',
+      'state': 'present',
+      'request_models': [
+        { 'content_type': 'application/json', 'model': 'new_value' },
+        { 'content_type': 'application/pdf', 'model': 'pdf' }
+      ]
+    }
+
+    expected_patch_ops = [
+      {'op': 'remove', 'path': '/requestModels/application~1gson'},
+      {'op': 'remove', 'path': '/requestModels/application~1octet-stream'},
+      {'op': 'replace', 'path': '/requestModels/application~1json', 'value': 'new_value'},
+      {'op': 'add', 'path': '/requestModels/application~1pdf', 'value': 'pdf'}
+    ]
+
+    self.method.process_request()
+
     self.assertItemsEqual(expected_patch_ops, self.method.client.update_method.call_args[1]['patchOperations'])
 
   @patch('library.apigw_method.put_integration', mock_args)
@@ -772,7 +841,7 @@ class TestApiGwMethod(unittest.TestCase):
       {'op': 'remove', 'path': '/responseTemplates/delete'},
       {'op': 'replace', 'path': '/responseParameters/method.response.header.change', 'value': 'newval'},
       {'op': 'add', 'path': '/responseParameters/method.response.body.addme', 'value': 'bodyval'},
-      {'op': 'remove', 'path': '/responseParameters/also-delete'},
+      {'op': 'remove', 'path': '/responseParameters/also-delete'}
     ]
 
     self.method.process_request()
@@ -950,7 +1019,7 @@ class TestApiGwMethod(unittest.TestCase):
         {'name': 'header_param', 'value': 'headerval', 'location': 'header'}
       ]
     }
-    self.method.module.params['method_integration'] = p;
+    self.method.module.params['method_integration'] = p
     expected = dict(
       restApiId='restid',
       resourceId='rsrcid',
@@ -981,7 +1050,7 @@ class TestApiGwMethod(unittest.TestCase):
         {'status_code': 400, 'response_params': [{'name': 'err_param', 'is_required': True}]},
         {'status_code': 500}
     ]
-    self.method.module.params['method_responses'] = p;
+    self.method.module.params['method_responses'] = p
     expected = [
       dict(
         restApiId='restid', resourceId='rsrcid', httpMethod='GET',
@@ -1020,7 +1089,7 @@ class TestApiGwMethod(unittest.TestCase):
           'response_templates': [{'content_type': 'application/json', 'template': '{}'}]
         },
     ]
-    self.method.module.params['integration_responses'] = p;
+    self.method.module.params['integration_responses'] = p
     expected = [
       dict(
         restApiId='restid',
